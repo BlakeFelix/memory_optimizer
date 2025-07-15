@@ -51,8 +51,9 @@ class ContextBuilder:
     def _format_context(
         self, layers: Dict[str, List[Memory]], tokens_used: int
     ):
-        formatted = []
+        formatted = [f"TOTAL TOKENS USED: {tokens_used}"]
         for layer in ["essential", "relevant", "supplemental"]:
+            formatted.append(f"=== {layer.upper()} ===")
             for mem in layers[layer]:
-                formatted.append(mem.content)
+                formatted.append(f"[{mem.memory_id}] {mem.content}")
         return "\n".join(formatted)
