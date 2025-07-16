@@ -19,7 +19,31 @@ class MemoryUpdater:
             self.compress_old_memories()
 
     def extract_entities(self, log: str) -> List[str]:
-        return list(set(re.findall(r"\b[A-Z][a-zA-Z]+\b", log)))
+        """Extract a variety of common entities using regex only."""
+        patterns = {
+            "email": r"[\w\.-]+@[\w\.-]+",
+            "phone": r"\b\+?\d[\d\s()-]{7,}\b",
+            "url": r"https?://\S+",
+            "money": r"\$\d+(?:\.\d+)?",
+            "date": r"\b\d{4}-\d{2}-\d{2}\b",
+            "time": r"\b\d{1,2}:\d{2}(?:am|pm)?\b",
+            "person": r"\b[A-Z][a-z]+\s[A-Z][a-z]+\b",
+            "single_word": r"\b[A-Z][a-zA-Z]+\b",
+            "ip": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
+            "hashtag": r"#\w+",
+            "mention": r"@\w+",
+        }
+
+        entities = []
+        for patt in patterns.values():
+            entities.extend(re.findall(patt, log))
+
+        flow = re.findall(r"(user|assistant):", log, re.I)
+        if len(set(flow)) > 1:
+            entities.append("conversation_flow")
+
+        cleaned = [e.strip(".,") for e in entities]
+        return list(set(cleaned))
 
     def extract_solutions(self, log: str) -> List[str]:
         pairs = []

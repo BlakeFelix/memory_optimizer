@@ -18,6 +18,34 @@ class TokenCounter:
             return len(self.encoder.encode(text))
         return len(text.split())
 
-    def estimate(self, text: str) -> int:
-        """Rough estimate without encoding."""
-        return max(1, len(text) // 4)
+    def estimate(self, text: str, model: str = "default") -> int:
+        """Heuristic token estimation without a tokenizer.
+
+        The estimation is based on character count with adjustments for
+        punctuation, code blocks and URLs. It loosely assumes that four
+        characters correspond to roughly one token.
+        """
+        import re
+
+        char_count = len(text)
+
+        # URLs tend to use more tokens due to slashes and parameters
+        if re.search(r"https?://", text):
+            char_count *= 1.1
+
+        # Code blocks expand slightly because of formatting characters
+        if "```" in text:
+            char_count *= 1.2
+
+        # punctuation adds token boundaries
+        punctuation = len(re.findall(r"[.!?]", text))
+        char_count += punctuation
+
+        # naive multilingual adjustment for non-ascii text
+        if re.search(r"[^\x00-\x7F]", text):
+            char_count *= 1.1
+
+        multipliers = {"gpt": 1.0, "claude": 1.1, "gemini": 1.2}
+        model_mul = multipliers.get(model.lower(), 1.0)
+
+        return max(1, int(char_count / 4 * model_mul))
