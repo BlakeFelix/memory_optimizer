@@ -154,11 +154,23 @@ def extract_entities(text: str) -> List[Tuple[str, str]]:
 # ---------------------------------------------------------------------
 
 
+UNWANTED_SEGMENTS = {"venv", "node_modules", "site-packages", "__pycache__"}
+
+
 def _load_json_files() -> Iterable[Path]:
     for root in LEGACY_JSON_ROOTS:
         if not root.exists():
             continue
-        yield from root.rglob("*.json")
+        for path in root.rglob("*.json"):
+            if any(seg in UNWANTED_SEGMENTS for seg in path.parts):
+                continue
+            try:
+                if path.stat().st_size > 1_000_000:
+                    continue
+            except OSError as exc:
+                print(f"[IMPORT] skipping {path}: {exc}")
+                continue
+            yield path
 
 
 def _canonical(term: str) -> str:
@@ -178,45 +190,47 @@ def import_legacy_json() -> None:
         for json_path in _load_json_files():
             try:
                 raw = json.loads(json_path.read_text())
-            except Exception as exc:
-                print(f"[IMPORT] skipping corrupt {json_path}: {exc}")
-                continue
+                content = raw.get("content") or raw.get("text") or raw.get("message") or ""
+                if not content:
+                    continue
 
-            msg_id = raw.get("id") or str(uuid.uuid4())
-            content = raw["content"]
-            ts = raw.get("timestamp") or datetime.now(tz=timezone.utc).isoformat()
-            conv_id = raw.get("conversation_id") or raw.get("project_id") or "import"
+                msg_id = raw.get("id") or str(uuid.uuid4())
+                ts = raw.get("timestamp") or datetime.now(tz=timezone.utc).isoformat()
+                conv_id = raw.get("conversation_id") or raw.get("project_id") or "import"
 
-            cur.execute(
-                "INSERT OR IGNORE INTO conversations (conv_id, user_id, title, started_at, updated_at) VALUES (?,?,?,?,?)",
-                (conv_id, user_id, raw.get("type", "imported"), ts, ts),
-            )
-
-            cur.execute(
-                "INSERT OR IGNORE INTO messages (msg_id, conv_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                (msg_id, conv_id, "system", content, ts),
-            )
-
-            for etype, value in extract_entities(content):
-                canonical = _canonical(value)
-                entity_id = f"{etype}:{canonical}"
                 cur.execute(
-                    "INSERT OR IGNORE INTO entities (entity_id, type, value, canonical) VALUES (?,?,?,?)",
-                    (entity_id, etype, value, canonical),
+                    "INSERT OR IGNORE INTO conversations (conv_id, user_id, title, started_at, updated_at) VALUES (?,?,?,?,?)",
+                    (conv_id, user_id, raw.get("type", "imported"), ts, ts),
                 )
 
-            cur.execute(
-                "INSERT OR IGNORE INTO memory_fragments (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at) VALUES (?,?,?,?,?,?,?)",
-                (
-                    raw["id"],
-                    conv_id,
-                    msg_id,
-                    content,
-                    float(raw.get("importance_weight", 1.0)),
-                    rough_token_len(content),
-                    ts,
-                ),
-            )
+                cur.execute(
+                    "INSERT OR IGNORE INTO messages (msg_id, conv_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                    (msg_id, conv_id, "system", content, ts),
+                )
+
+                for etype, value in extract_entities(content):
+                    canonical = _canonical(value)
+                    entity_id = f"{etype}:{canonical}"
+                    cur.execute(
+                        "INSERT OR IGNORE INTO entities (entity_id, type, value, canonical) VALUES (?,?,?,?)",
+                        (entity_id, etype, value, canonical),
+                    )
+
+                cur.execute(
+                    "INSERT OR IGNORE INTO memory_fragments (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at) VALUES (?,?,?,?,?,?,?)",
+                    (
+                        raw.get("id", msg_id),
+                        conv_id,
+                        msg_id,
+                        content,
+                        float(raw.get("importance_weight", 1.0)),
+                        rough_token_len(content),
+                        ts,
+                    ),
+                )
+            except Exception as exc:
+                print(f"[IMPORT] skipping {json_path}: {exc}")
+                continue
         conn.commit()
     print("[IMPORT] legacy JSON import completed.")
 
@@ -226,13 +240,13 @@ def import_legacy_json() -> None:
 # ---------------------------------------------------------------------
 
 
-def create_production_memory_system(config_file: str | None = None):
+def create_production_memory_system(config_file: str | None = None, skip_import: bool = False):
     """Return a connection ready for higher-level optimizers."""
     first_init = not DB_PATH.exists()
     conn = _connect()
     _ensure_schema(conn)
 
-    if first_init:
+    if first_init and not skip_import:
         import_legacy_json()
 
     print(f"[AI-Memory] SQLite backend ready -> {DB_PATH}")

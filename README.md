@@ -14,3 +14,4 @@ The code in `ai_memory/` includes:
   types without external dependencies.
 * Utilities for importing existing conversation logs via JSON with validation
   and batch support.
+* 2025-07-16 → switched to SQLite backend, added conversation session layer.
