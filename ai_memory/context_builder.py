@@ -1,47 +1,89 @@
+"""
+Layered context assembly.
+
+* No longer relies on a 'type' field that isn't present.
+* Guarantees a non\-empty context so long as there is at least one memory.
+"""
+
+from __future__ import annotations
 from typing import List, Dict
 
+
 class ContextBuilder:
+    # ------------------------------------------------------------------ #
+    # public                                                             #
+    # ------------------------------------------------------------------ #
     def build_layers(self, scored_memories: List[Dict], token_budget: int) -> str:
-        memories_by_value = sorted(
+        """Return a context string honouring the token_budget."""
+        memories = sorted(
             scored_memories,
-            key=lambda x: x["score"] / max(x["token_cost"], 1),
+            key=lambda m: m["score"] / max(m["token_cost"], 1),
             reverse=True,
         )
 
-        layers = {"essential": [], "relevant": [], "supplemental": []}
+        essential: List[Dict] = []
+        relevant: List[Dict] = []
+        supplemental: List[Dict] = []
+
         tokens_used = 0
+        hard_cap = int(token_budget * 0.95)
 
-        # 1) essential (20 %)
-        for mem in memories_by_value:
-            if mem["token_cost"] + tokens_used > token_budget * 0.2:
+        # -------------------------------------------------------------- #
+        # 1) top\-scored memories marked *high importance* (if any)       #
+        #    — treat as 'essential' up to 20\% budget                    #
+        # -------------------------------------------------------------- #
+        essential_budget = int(token_budget * 0.20)
+        for mem in memories:
+            if tokens_used + mem["token_cost"] > essential_budget:
                 continue
-            if mem.get("type") in ("core_identity", "active_project_state"):
-                layers["essential"].append(mem)
+            if mem["score"] >= 40:            # heuristic “very relevant”
+                essential.append(mem)
                 tokens_used += mem["token_cost"]
 
-        # 2) relevant (60 %)
-        for mem in memories_by_value:
-            if mem in layers["essential"]:
+        # -------------------------------------------------------------- #
+        # 2) next best memories until 80\% budget                        #
+        # -------------------------------------------------------------- #
+        relevant_budget = int(token_budget * 0.80)
+        for mem in memories:
+            if mem in essential:
                 continue
-            if mem["score"] > 15 and mem["token_cost"] + tokens_used <= token_budget * 0.8:
-                layers["relevant"].append(mem)
-                tokens_used += mem["token_cost"]
-
-        # 3) supplemental (fill → 95 %)
-        for mem in memories_by_value:
-            if mem in layers["essential"] or mem in layers["relevant"]:
+            if tokens_used + mem["token_cost"] > relevant_budget:
                 continue
-            if mem["token_cost"] + tokens_used <= token_budget * 0.95:
-                layers["supplemental"].append(mem)
-                tokens_used += mem["token_cost"]
+            relevant.append(mem)
+            tokens_used += mem["token_cost"]
 
-        return self._format(layers)
+        # -------------------------------------------------------------- #
+        # 3) fill the remaining 15\% with whatever fits                  #
+        # -------------------------------------------------------------- #
+        for mem in memories:
+            if mem in essential or mem in relevant:
+                continue
+            if tokens_used + mem["token_cost"] > hard_cap:
+                continue
+            supplemental.append(mem)
+            tokens_used += mem["token_cost"]
 
+        # -------------------------------------------------------------- #
+        # 4) safeguard: if context still empty, drop *something*         #
+        # -------------------------------------------------------------- #
+        if not (essential or relevant or supplemental) and memories:
+            first = memories[0]
+            supplemental.append(first)
+
+        return self._format(essential, relevant, supplemental)
+
+    # ------------------------------------------------------------------ #
+    # helpers                                                            #
+    # ------------------------------------------------------------------ #
     @staticmethod
-    def _format(layers: Dict[str, List[Dict]]) -> str:
+    def _format(
+        essential: List[Dict],
+        relevant: List[Dict],
+        supplemental: List[Dict],
+    ) -> str:
         ordered = (
-            [m["content"] for m in layers["essential"]]
-            + [m["content"] for m in layers["relevant"]]
-            + [m["content"] for m in layers["supplemental"]]
+            [m["content"] for m in essential]
+            + [m["content"] for m in relevant]
+            + [m["content"] for m in supplemental]
         )
         return "\n".join(ordered)
