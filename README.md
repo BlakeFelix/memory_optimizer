@@ -15,3 +15,8 @@ The code in `ai_memory/` includes:
 * Utilities for importing existing conversation logs via JSON with validation
   and batch support.
 * 2025-07-16 → switched to SQLite backend, added conversation session layer.
+* A Flask-based API server for adding memories, building context, and exporting
+  data (`python -m ai_memory.api`).
+* Built-in model configuration with context budgets via `model_config.py`.
+* Convenience setup script `setup_memory_system.sh` to install dependencies
+  and provide usage examples.

@@ -1,42 +1,43 @@
-from pathlib import Path
+"""Model configuration for context budgets."""
 
-_DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "memory_config.yaml"
-
-
-def _parse_token_budgets(path: Path) -> dict[str, int]:
-    budgets: dict[str, int] = {}
-    in_block = False
-    with path.open("r", encoding="utf-8") as f:
-        for raw in f:
-            line = raw.rstrip()
-            if not line.strip():
-                continue
-            if line.lstrip().startswith('#'):
-                continue
-            if line.strip() == "token_budgets:":
-                in_block = True
-                continue
-            if in_block:
-                if line.startswith("    "):
-                    item = line.strip()
-                    if ':' in item:
-                        k, v = item.split(':', 1)
-                        budgets[k.strip()] = int(v.strip())
-                else:
-                    break
-    return budgets
+# Mapping of model names to their max context length and safety margin
+MODEL_CONFIGS = {
+    # Model context sizes and safety margins
+    "gpt-4": {"max_tokens": 8192, "safety_margin": 500},
+    "claude-3-opus": {"max_tokens": 100000, "safety_margin": 5000},
+    "claude-3-sonnet": {"max_tokens": 24000, "safety_margin": 1000},
+    "local-llm": {"max_tokens": 4096, "safety_margin": 256},
+    "dream-lord": {"max_tokens": 16384, "safety_margin": 1000},
+}
 
 
-def load_config(path: Path | str | None = None) -> dict:
-    cfg_path = Path(path) if path else _DEFAULT_CONFIG_PATH
-    return {"optimization": {"token_budgets": _parse_token_budgets(cfg_path)}}
+def get_model_budget(model_name: str, custom_limit: int | None = None) -> int:
+    """Return the usable token budget for ``model_name``.
 
+    The returned budget subtracts the configured safety margin from the model's
+    maximum context size. If ``custom_limit`` is provided, it overrides the
+    model's ``max_tokens`` (but will not exceed it) before subtracting the
+    margin. Unknown models require ``custom_limit`` to be supplied.
+    """
 
-def get_model_budget(model: str, override: int | None = None) -> int:
-    conf = load_config()
-    budgets = conf.get("optimization", {}).get("token_budgets", {})
-    if model not in budgets:
-        raise KeyError(f"Unknown model: {model}")
-    if override is not None:
-        return int(override)
-    return int(budgets[model])
+    name_key = model_name.lower()
+    config = MODEL_CONFIGS.get(name_key)
+
+    if config is None:
+        if custom_limit is not None:
+            # Unknown model; use the custom limit directly without extra margin
+            return max(int(custom_limit), 0)
+        raise ValueError(f"Unknown model '{model_name}' and no custom limit provided.")
+
+    max_tokens = config["max_tokens"]
+    safety_margin = config.get("safety_margin", 0)
+
+    effective_max = max_tokens
+    if custom_limit is not None:
+        # Do not allow custom limit to exceed the model's capacity
+        effective_max = min(int(custom_limit), max_tokens)
+
+    budget = effective_max - safety_margin
+    if budget < 0:
+        budget = 0
+    return budget
