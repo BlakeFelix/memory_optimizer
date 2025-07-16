@@ -1,10 +1,10 @@
 # Memory Optimizer
 
 This project provides a lightweight implementation of a dynamic context
-optimization system for language models.  It includes in-memory storage of
+optimization system for language models.  It includes SQLite-backed storage of
 "memories", scoring for relevance, and context assembly within a token budget.
 
-The code in `aimemory/` includes:
+The code in `ai_memory/` includes:
 
 * A lightweight `MemoryDatabase` built on SQLite with a normalized schema,
   Write-Ahead Logging enabled and automatic indexes/triggers for consistency.
