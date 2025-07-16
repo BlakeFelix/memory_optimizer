@@ -50,6 +50,7 @@ class MemoryDatabase:
                 fragment_id TEXT PRIMARY KEY,
                 message_id TEXT,
                 entity_id TEXT,
+                source_type TEXT,
                 importance REAL,
                 FOREIGN KEY(message_id) REFERENCES messages(message_id),
                 FOREIGN KEY(entity_id) REFERENCES entities(entity_id)
@@ -73,6 +74,11 @@ class MemoryDatabase:
             END;
             """
         )
+        # Ensure source_type column exists when upgrading
+        cur.execute("PRAGMA table_info(memory_fragments)")
+        cols = [row[1] for row in cur.fetchall()]
+        if "source_type" not in cols:
+            cur.execute("ALTER TABLE memory_fragments ADD COLUMN source_type TEXT")
         self.conn.commit()
 
     def _hash(self, text: str) -> str:
@@ -136,8 +142,14 @@ class MemoryDatabase:
                         )
                         fragment_id = self._hash(msg_id + entity_id)
                         cur.execute(
-                            "INSERT OR IGNORE INTO memory_fragments (fragment_id, message_id, entity_id, importance) VALUES (?, ?, ?, ?)",
-                            (fragment_id, msg_id, entity_id, importance),
+                            "INSERT OR IGNORE INTO memory_fragments (fragment_id, message_id, entity_id, source_type, importance) VALUES (?, ?, ?, ?, ?)",
+                            (
+                                fragment_id,
+                                msg_id,
+                                entity_id,
+                                msg.get("type", "conversation"),
+                                importance,
+                            ),
                         )
 
     def close(self) -> None:

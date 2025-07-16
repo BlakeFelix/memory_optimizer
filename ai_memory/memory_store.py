@@ -20,6 +20,7 @@ class MemoryStore:
         conv_id: Optional[str] = None,
         msg_id: Optional[str] = None,
         importance: float = 1.0,
+        source_type: str = "conversation",
     ) -> str:
         mem_id = str(uuid.uuid4())
         ts = datetime.now(tz=timezone.utc).isoformat()
@@ -27,8 +28,8 @@ class MemoryStore:
         cur.execute(
             """
             INSERT INTO memory_fragments
-                (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at)
-            VALUES (?,?,?,?,?,?,?)
+                (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type)
+            VALUES (?,?,?,?,?,?,?,?)
             """,
             (
                 mem_id,
@@ -38,6 +39,7 @@ class MemoryStore:
                 importance,
                 rough_token_len(content),
                 ts,
+                source_type,
             ),
         )
         self.conn.commit()
@@ -55,7 +57,7 @@ class MemoryStore:
     def get_all(self) -> List[Dict[str, Any]]:
         cur = self.conn.cursor()
         cur.execute(
-            "SELECT mem_id, conv_id, msg_id, content, importance, token_estimate, created_at FROM memory_fragments"
+            "SELECT mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type FROM memory_fragments"
         )
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]

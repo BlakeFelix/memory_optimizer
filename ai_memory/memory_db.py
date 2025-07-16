@@ -95,11 +95,21 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
             msg_id          TEXT REFERENCES messages(msg_id),
             content         TEXT,
             importance      REAL,
+            source_type     TEXT,
             token_estimate  INTEGER,
             created_at      TEXT
         );
         """
     )
+
+    # ------------------------------------------------------------------
+    # ensure new columns exist when upgrading old DBs
+    # ------------------------------------------------------------------
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(memory_fragments)")
+    cols = [row[1] for row in cur.fetchall()]
+    if "source_type" not in cols:
+        conn.execute("ALTER TABLE memory_fragments ADD COLUMN source_type TEXT")
 
 
 @contextmanager
@@ -217,7 +227,7 @@ def import_legacy_json() -> None:
                     )
 
                 cur.execute(
-                    "INSERT OR IGNORE INTO memory_fragments (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at) VALUES (?,?,?,?,?,?,?)",
+                    "INSERT OR IGNORE INTO memory_fragments (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type) VALUES (?,?,?,?,?,?,?,?)",
                     (
                         raw.get("id", msg_id),
                         conv_id,
@@ -226,6 +236,7 @@ def import_legacy_json() -> None:
                         float(raw.get("importance_weight", 1.0)),
                         rough_token_len(content),
                         ts,
+                        raw.get("source_type") or raw.get("type") or "conversation",
                     ),
                 )
             except Exception as exc:
