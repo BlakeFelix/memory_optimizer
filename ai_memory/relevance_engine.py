@@ -51,12 +51,12 @@ class RelevanceEngine:
         cur = self.conn.cursor()
         if conv_id:
             cur.execute(
-                "SELECT mem_id, conv_id, msg_id, content, importance, token_estimate, created_at FROM memory_fragments WHERE conv_id=?",
+                "SELECT mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type FROM memory_fragments WHERE conv_id=?",
                 (conv_id,),
             )
         else:
             cur.execute(
-                "SELECT mem_id, conv_id, msg_id, content, importance, token_estimate, created_at FROM memory_fragments"
+                "SELECT mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type FROM memory_fragments"
             )
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
