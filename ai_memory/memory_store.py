@@ -5,7 +5,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from .memory_db import create_production_memory_system, rough_token_len
+from .memory_db import (
+    create_production_memory_system,
+    rough_token_len,
+    extract_entities,
+)
 
 
 class MemoryStore:
@@ -25,6 +29,27 @@ class MemoryStore:
         mem_id = str(uuid.uuid4())
         ts = datetime.now(tz=timezone.utc).isoformat()
         cur = self.conn.cursor()
+
+        if msg_id is None:
+            msg_id = mem_id
+
+        cur.execute(
+            "INSERT OR IGNORE INTO messages (msg_id, conv_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+            (msg_id, conv_id, "system", content, ts),
+        )
+
+        for etype, value in extract_entities(content):
+            canonical = value.lower().strip()
+            entity_id = f"{etype}:{canonical}"
+            cur.execute(
+                "INSERT OR IGNORE INTO entities (entity_id, type, value, canonical) VALUES (?,?,?,?)",
+                (entity_id, etype, value, canonical),
+            )
+            cur.execute(
+                "INSERT OR IGNORE INTO message_entities (msg_id, entity_id) VALUES (?,?)",
+                (msg_id, entity_id),
+            )
+
         cur.execute(
             """
             INSERT INTO memory_fragments

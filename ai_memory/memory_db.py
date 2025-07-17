@@ -89,6 +89,15 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         CREATE UNIQUE INDEX IF NOT EXISTS idx_entities_value
             ON entities(type, canonical);
 
+        CREATE TABLE IF NOT EXISTS message_entities (
+            msg_id      TEXT REFERENCES messages(msg_id),
+            entity_id   TEXT REFERENCES entities(entity_id),
+            PRIMARY KEY (msg_id, entity_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_message_entities_entity
+            ON message_entities(entity_id);
+
         CREATE TABLE IF NOT EXISTS memory_fragments (
             mem_id          TEXT PRIMARY KEY,
             conv_id         TEXT REFERENCES conversations(conv_id),
@@ -224,6 +233,10 @@ def import_legacy_json() -> None:
                     cur.execute(
                         "INSERT OR IGNORE INTO entities (entity_id, type, value, canonical) VALUES (?,?,?,?)",
                         (entity_id, etype, value, canonical),
+                    )
+                    cur.execute(
+                        "INSERT OR IGNORE INTO message_entities (msg_id, entity_id) VALUES (?,?)",
+                        (msg_id, entity_id),
                     )
 
                 cur.execute(
