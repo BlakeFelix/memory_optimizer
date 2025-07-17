@@ -9,6 +9,4 @@ jobs:
       with:
         python-version: '3.11'
     - run: pip install -r memory_optimizer/requirements.txt
-    - run: pip install pytest click flask
     - run: pytest -q
-      working-directory: memory_optimizer

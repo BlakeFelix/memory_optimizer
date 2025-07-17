@@ -58,23 +58,32 @@ def add(content: str, importance: float, conv_id: str):
 @click.option("--limit", "-n", type=int, default=10, help="Number of recent memories to list.")
 @click.option("--conversation-id", "-c", "conv_id", default=None, help="Filter by conversation ID.")
 @click.option("--contains", "-k", default=None, help="Filter memories that contain a given substring.")
-def list(limit: int, conv_id: str, contains: str):
+@click.option("--entity", default=None, help="Filter memories mentioning the given entity.")
+def list(limit: int, conv_id: str, contains: str, entity: str):
     """List recent memories."""
     try:
         store = MemoryStore()
         cur = store.conn.cursor()
-        query = "SELECT conv_id, content, importance, created_at FROM memory_fragments"
+        base = "SELECT mf.conv_id, mf.content, mf.importance, mf.created_at FROM memory_fragments mf"
+        joins = []
+        query = base
         conditions = []
         params = []
         if conv_id:
-            conditions.append("conv_id = ?")
+            conditions.append("mf.conv_id = ?")
             params.append(conv_id)
         if contains:
-            conditions.append("content LIKE ?")
+            conditions.append("mf.content LIKE ?")
             params.append(f"%{contains}%")
+        if entity:
+            joins.append("JOIN message_entities me ON mf.msg_id = me.msg_id JOIN entities e ON me.entity_id = e.entity_id")
+            conditions.append("e.canonical = ?")
+            params.append(entity.lower().strip())
+        if joins:
+            query += " " + " ".join(joins)
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-        query += " ORDER BY datetime(created_at) DESC"
+        query += " ORDER BY datetime(mf.created_at) DESC"
         if limit is not None:
             query += " LIMIT ?"
             params.append(limit)

@@ -20,3 +20,33 @@ The code in `ai_memory/` includes:
 * Built-in model configuration with context budgets via `model_config.py`.
 * Convenience setup script `setup_memory_system.sh` to install dependencies
   and provide usage examples.
+
+## Quick start
+
+Install dependencies and create a helpful alias:
+
+```bash
+./setup_memory_system.sh
+```
+
+Add a memory and list it back:
+
+```bash
+aimem add "hello world" -c demo
+aimem list -n 1 -c demo
+```
+
+Run the API server and fetch context via HTTP:
+
+```bash
+python -m ai_memory.api &
+# In another terminal
+curl -XPOST localhost:5678/context -d '{"query":"hello"}' \
+     -H "Content-Type: application/json"
+```
+
+The `aimem list` command also supports filtering by detected entity:
+
+```bash
+aimem list --entity foo@example.com
+```
