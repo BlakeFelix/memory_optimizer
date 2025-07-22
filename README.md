@@ -50,3 +50,9 @@ The `aimem list` command also supports filtering by detected entity:
 ```bash
 aimem list --entity foo@example.com
 ```
+
+Import a structured JSON log into the memory database:
+
+```bash
+aimem import ./chatlogs/claude_memory.json
+```
