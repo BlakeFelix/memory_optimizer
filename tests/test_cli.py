@@ -1,8 +1,8 @@
 import subprocess, json, os, sys, tempfile, time
 
 
-def _run(cmd):
-    result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+def _run(cmd, env=None):
+    result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
     assert result.returncode == 0, result.stderr
     return result.stdout.strip()
 
@@ -29,3 +29,34 @@ def test_list_by_entity():
     _run("python -m ai_memory.cli add 'contact me at foo@example.com' -c entity_sess")
     out = _run("python -m ai_memory.cli list --entity foo@example.com -n 1")
     assert 'foo@example.com' in out
+
+
+def test_import_command(tmp_path):
+    json_file = tmp_path / "conv.json"
+    data = {
+        "user": "tester",
+        "conversations": [
+            {
+                "id": "c1",
+                "started_at": "2025-01-01T00:00:00Z",
+                "messages": [
+                    {"id": "m1", "sender": "user", "content": "hi", "timestamp": "2025-01-01T00:00:01Z"},
+                    {"id": "m2", "sender": "assistant", "content": "hello", "timestamp": "2025-01-01T00:00:02Z"},
+                ],
+            }
+        ],
+    }
+    json_file.write_text(json.dumps(data))
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    _run(f"python -m ai_memory.cli import {json_file}", env=env)
+    db_path = tmp_path / "ai_memory" / "ai_memory.db"
+    assert db_path.exists()
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM messages")
+    count = cur.fetchone()[0]
+    conn.close()
+    assert count == 2

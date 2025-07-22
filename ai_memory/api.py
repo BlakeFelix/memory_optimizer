@@ -107,15 +107,20 @@ def export_memories(fmt):
         return jsonify({"error": "Format not supported."}), 400
     try:
         store = MemoryStore()
-        data = store.get_all()
+        data = list(store.get_all().values())
         store.conn.close()
         if fmt == "json":
-            return jsonify(data), 200
+            serialized = []
+            for m in data:
+                d = vars(m).copy()
+                if isinstance(d.get("entities"), set):
+                    d["entities"] = list(d["entities"])
+                serialized.append(d)
+            return jsonify(serialized), 200
         elif fmt == "markdown":
             lines = []
             for mem in data:
-                content = mem.get("content", "")
-                content_line = content.replace("\n", " ")
+                content_line = mem.content.replace("\n", " ")
                 lines.append(f"- {content_line}")
             md_text = "\n".join(lines)
             return Response(md_text, mimetype="text/markdown")

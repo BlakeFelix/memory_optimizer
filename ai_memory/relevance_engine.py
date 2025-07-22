@@ -1,5 +1,5 @@
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from .memory import Memory
@@ -25,7 +25,7 @@ class RelevanceEngine:
             score = 0.0
 
             age_hours = (
-                datetime.now() - memory.timestamp
+                datetime.now(tz=timezone.utc) - memory.timestamp
             ).total_seconds() / 3600.0
             score += 10 * math.exp(-age_hours / 168)
 

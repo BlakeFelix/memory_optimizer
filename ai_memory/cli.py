@@ -1,8 +1,9 @@
 import sys
 import json
 import click
-from .database import MemoryStore, MemoryDatabase
-from .memory import Memory
+
+from .memory_store import MemoryStore
+from .database import MemoryDatabase
 from .model_config import get_model_budget
 
 @click.group()
@@ -18,19 +19,16 @@ def add(content, importance, conversation_id):
     """Add a new memory entry."""
     try:
         store = MemoryStore()
-        mem = Memory(
-            memory_id=None,
-            content=content.strip(),
-            timestamp=None,
-            type="conversation",
-            project_id=None,
-            importance_weight=importance,
-            entities=set(),
-            access_count=0,
-        )
         if conversation_id:
-            mem.project_id = conversation_id
-        store.add(mem)
+            from datetime import datetime, timezone
+
+            ts = datetime.now(tz=timezone.utc).isoformat()
+            cur = store.conn.cursor()
+            cur.execute(
+                "INSERT OR IGNORE INTO conversations (conv_id, user_id, title, started_at, updated_at) VALUES (?,?,?,?,?)",
+                (conversation_id, "default", conversation_id, ts, ts),
+            )
+        store.add(content.strip(), conv_id=conversation_id, importance=importance)
         click.echo("✓ Memory added.")
     except Exception as e:
         click.echo(f"✗ Failed to add memory: {e}", err=True)
@@ -40,7 +38,8 @@ def add(content, importance, conversation_id):
 @click.option("--limit", "-n", default=None, type=int, help="Limit the number of results")
 @click.option("--conversation-id", "-c", "conv_id", default=None, help="Conversation ID")
 @click.option("--contains", "-f", default=None, help="Substring filter for content")
-def list(limit, conv_id, contains):
+@click.option("--entity", "-e", default=None, help="Filter by entity value")
+def list(limit, conv_id, contains, entity):
 
     """List recent memories."""
     try:
@@ -105,7 +104,7 @@ def context(query, model, token_limit, conv_id):
         sys.exit(1)
 
 @cli.command()
-@click.argument("output_path", required=False)
+@click.option("--output", "-o", "output_path", required=False, help="Output file path")
 @click.option("--conversation-id", "-c", default=None, help="Optional conversation ID")
 @click.option("--filter", "-f", "where_clause", default=None, help="Optional SQL WHERE clause")
 @click.option("--format", "-t", "format_", type=click.Choice(["json", "text", "table"]), default="json")
