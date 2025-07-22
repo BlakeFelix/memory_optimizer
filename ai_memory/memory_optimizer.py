@@ -7,8 +7,8 @@ from .context_builder import ContextBuilder
 
 
 class MemoryOptimizer:
-    def __init__(self, memory_path: str = "~/aimemory/"):
-        self.memory_store = MemoryStore(memory_path)
+    def __init__(self) -> None:
+        self.memory_store = MemoryStore()
         self.relevance_engine = RelevanceEngine()
         self.token_counter = TokenCounter()
         self.context_builder = ContextBuilder()

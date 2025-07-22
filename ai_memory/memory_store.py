@@ -5,6 +5,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from .memory import Memory
+
 from .memory_db import (
     create_production_memory_system,
     rough_token_len,
@@ -79,10 +81,25 @@ class MemoryStore:
         )
         self.conn.commit()
 
-    def get_all(self) -> List[Dict[str, Any]]:
+    def get_all(self) -> Dict[str, Memory]:
         cur = self.conn.cursor()
         cur.execute(
-            "SELECT mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type FROM memory_fragments"
+            "SELECT mem_id, conv_id, content, importance, created_at, source_type FROM memory_fragments"
         )
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
+        memories: Dict[str, Memory] = {}
+        for mem_id, conv_id, content, importance, created_at, source_type in cur.fetchall():
+            try:
+                ts = datetime.fromisoformat(created_at)
+            except Exception:
+                ts = datetime.now(tz=timezone.utc)
+            memories[mem_id] = Memory(
+                memory_id=mem_id,
+                content=content,
+                timestamp=ts,
+                type=source_type,
+                project_id=conv_id,
+                importance_weight=float(importance),
+                entities=set(),
+                access_count=0,
+            )
+        return memories
