@@ -60,3 +60,35 @@ def test_import_command(tmp_path):
     count = cur.fetchone()[0]
     conn.close()
     assert count == 2
+
+
+def test_console_script_import(tmp_path):
+    json_file = tmp_path / "conv.json"
+    data = {
+        "user": "tester",
+        "conversations": [
+            {
+                "id": "c1",
+                "started_at": "2025-01-01T00:00:00Z",
+                "messages": [
+                    {"id": "m1", "sender": "user", "content": "hi", "timestamp": "2025-01-01T00:00:01Z"},
+                    {"id": "m2", "sender": "assistant", "content": "hello", "timestamp": "2025-01-01T00:00:02Z"},
+                ],
+            }
+        ],
+    }
+    json_file.write_text(json.dumps(data))
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    _run("pip install -e .", env=env)
+    _run(f"aimem import {json_file}", env=env)
+    db_path = tmp_path / "ai_memory" / "ai_memory.db"
+    assert db_path.exists()
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM messages")
+    count = cur.fetchone()[0]
+    conn.close()
+    assert count == 2
