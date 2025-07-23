@@ -98,6 +98,8 @@ def test_vectorize(tmp_path):
     txt = tmp_path / "sample.txt"
     txt.write_text("hello")
     index = tmp_path / "vec.idx"
-    out = _run(f"python -m ai_memory.cli vectorize {txt} --vector-index {index}")
+    out = _run(
+        f"python -m ai_memory.cli vectorize {txt} --vector-index {index} --factory Flat"
+    )
     assert "Embedded" in out
     assert index.exists()

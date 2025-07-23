@@ -7,6 +7,7 @@ setup(
     install_requires=[
         "click>=8.0.0",
         "flask>=2.0.0",
+        "faiss-cpu>=1.8.0",
     ],
     extras_require={"test": ["pytest"]},
     entry_points={
