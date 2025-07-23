@@ -17,11 +17,12 @@ def cli():
 @click.argument("file", type=click.Path(exists=True))
 @click.option("--vector-index", required=True, help="Path to FAISS/SQLite index")
 @click.option("--model", default="llama3:70b-instruct-q4_K_M")
-def vectorize(file, vector_index, model):
+@click.option("--factory", default="Flat", help="faiss index_factory string")
+def vectorize(file, vector_index, model, factory):
     """Embed a file into the vector index."""
     from .vector_embedder import embed_file
 
-    embed_file(file, vector_index, model)
+    embed_file(file, vector_index, model, factory=factory)
     click.echo(f"\u2713 Embedded {file} into {vector_index}")
 
 @cli.command()

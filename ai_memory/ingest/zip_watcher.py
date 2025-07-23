@@ -33,6 +33,8 @@ def process_zip(zip_path: Path, dest_root: Path, index: str | None, model: str |
             str(log_file),
             "--vector-index",
             index,
+            "--factory",
+            "Flat",
             "--model",
             model,
         ]
