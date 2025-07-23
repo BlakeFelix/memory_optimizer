@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 import zipfile
 
@@ -29,9 +28,7 @@ def process_zip(zip_path: Path, dest_root: Path, index: str | None, model: str |
 
     for log_file in text_logs + json_logs:
         cmd = [
-            sys.executable,
-            "-m",
-            "ai_memory.cli",
+            "aimem",
             "vectorize",
             str(log_file),
             "--vector-index",
