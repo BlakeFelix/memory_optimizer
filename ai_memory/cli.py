@@ -6,10 +6,23 @@ from .memory_store import MemoryStore
 from .database import MemoryDatabase
 from .model_config import get_model_budget
 
+
 @click.group()
 def cli():
     """AI Memory CLI - manage memories and context."""
     pass
+
+
+@cli.command(name="vectorize")
+@click.argument("file", type=click.Path(exists=True))
+@click.option("--vector-index", required=True, help="Path to FAISS/SQLite index")
+@click.option("--model", default="llama3:70b-instruct-q4_K_M")
+def vectorize(file, vector_index, model):
+    """Embed a file into the vector index."""
+    from .vector_embedder import embed_file
+
+    embed_file(file, vector_index, model)
+    click.echo(f"\u2713 Embedded {file} into {vector_index}")
 
 @cli.command()
 @click.argument("content")

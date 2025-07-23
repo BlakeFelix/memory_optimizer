@@ -92,3 +92,12 @@ def test_console_script_import(tmp_path):
     count = cur.fetchone()[0]
     conn.close()
     assert count == 2
+
+
+def test_vectorize(tmp_path):
+    txt = tmp_path / "sample.txt"
+    txt.write_text("hello")
+    index = tmp_path / "vec.idx"
+    out = _run(f"python -m ai_memory.cli vectorize {txt} --vector-index {index}")
+    assert "Embedded" in out
+    assert index.exists()
