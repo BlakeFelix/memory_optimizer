@@ -24,7 +24,10 @@ def process_zip(zip_path: Path, dest_root: Path, index: str | None, model: str |
     for mem_file in dest_dir.rglob("*memory.json"):
         subprocess.run(["aimem", "import", str(mem_file)], check=True)
 
-    for log_file in list(dest_dir.rglob("*.md")) + [p for p in dest_dir.rglob("*.json") if not p.name.endswith("memory.json")]:
+    text_logs = list(dest_dir.rglob("*.md"))
+    json_logs = [p for p in dest_dir.rglob("*.json") if not p.name.endswith("memory.json")]
+
+    for log_file in text_logs + json_logs:
         cmd = [
             sys.executable,
             "-m",
@@ -38,6 +41,8 @@ def process_zip(zip_path: Path, dest_root: Path, index: str | None, model: str |
             "--model",
             model,
         ]
+        if log_file.suffix == ".json":
+            cmd += ["--json-extract", "messages"]
         subprocess.run([c for c in cmd if c], check=True)
 
 

@@ -18,11 +18,17 @@ def cli():
 @click.option("--vector-index", required=True, help="Path to FAISS/SQLite index")
 @click.option("--model", default="llama3:70b-instruct-q4_K_M")
 @click.option("--factory", default="Flat", help="faiss index_factory string")
-def vectorize(file, vector_index, model, factory):
+@click.option(
+    "--json-extract",
+    type=click.Choice(["auto", "all", "messages", "none"]),
+    default="auto",
+    help="How to extract text from JSON files",
+)
+def vectorize(file, vector_index, model, factory, json_extract):
     """Embed a file into the vector index."""
     from .vector_embedder import embed_file
 
-    embed_file(file, vector_index, model, factory=factory)
+    embed_file(file, vector_index, model, factory=factory, json_extract=json_extract)
     click.echo(f"\u2713 Embedded {file} into {vector_index}")
 
 @cli.command()
