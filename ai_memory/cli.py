@@ -155,5 +155,25 @@ def import_(json_path):
         click.echo(f"✗ Failed to import: {e}", err=True)
         sys.exit(1)
 
+
+@cli.command(name="ingest-zip")
+@click.option("--src", default="~/Downloads", help="Directory containing ZIP files")
+@click.option("--dest", default="~/chatlogs", help="Extraction destination")
+@click.option("--index", default=None, help="Vector index for aimem_bld")
+@click.option("--model", default=None, help="Embedding model for aimem_bld")
+def ingest_zip(src, dest, index, model):
+    """Scan a directory for chat log ZIPs and import them."""
+    try:
+        from .ingest import zip_watcher
+        args = ["--src", src, "--dest", dest]
+        if index:
+            args += ["--index", index]
+        if model:
+            args += ["--model", model]
+        zip_watcher.main(args)
+    except Exception as e:
+        click.echo(f"✗ Failed to ingest ZIPs: {e}", err=True)
+        sys.exit(1)
+
 if __name__ == "__main__":
     cli()

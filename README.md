@@ -56,3 +56,14 @@ Import a structured JSON log into the memory database:
 ```bash
 aimem import ./chatlogs/claude_memory.json
 ```
+
+## Automated ZIP ingestion
+
+The `ingest-zip` command extracts chat log archives and imports any `*memory.json` files it finds:
+
+```bash
+aimem ingest-zip --src ~/Downloads --dest ~/chatlogs
+```
+
+You can also run `ai_memory/ingest/process_new_memories.sh` which calls the same
+utility with sensible defaults.
