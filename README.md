@@ -57,6 +57,12 @@ Import a structured JSON log into the memory database:
 aimem import ./chatlogs/claude_memory.json
 ```
 
+Embed a chat log into a vector index:
+
+```bash
+aimem vectorize ./chatlogs/claude_memory.json --vector-index ./index.txt
+```
+
 ## Automated ZIP ingestion
 
 The `ingest-zip` command extracts chat log archives and imports any `*memory.json` files it finds:
