@@ -20,9 +20,9 @@ def cli():
 @click.option("--factory", default="Flat", help="faiss index_factory string")
 @click.option(
     "--json-extract",
-    type=click.Choice(["auto", "all", "messages", "none"]),
+    type=click.Choice(["auto", "messages", "all", "none"]),
     default="auto",
-    help="How to extract text from JSON files",
+    help="Extraction mode for JSON files (auto|messages|all|none)",
 )
 def vectorize(file, vector_index, model, factory, json_extract):
     """Embed a file into the vector index."""

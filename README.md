@@ -57,11 +57,20 @@ Import a structured JSON log into the memory database:
 aimem import ./chatlogs/claude_memory.json
 ```
 
-Embed a chat log into a vector index:
+Embed a chat log into a vector index. For ChatGPT exports use
+`--json-extract messages` so only the conversation text is embedded:
 
 ```bash
-aimem vectorize ./chatlogs/claude_memory.json --vector-index ./index.txt
+aimem vectorize ./chatlogs/claude_memory.json --vector-index ./index.faiss \
+  --json-extract messages
 ```
+
+`--json-extract` controls how JSON logs are parsed:
+
+* `auto` – default, tries `messages` then all strings
+* `messages` – expects `{conversations:[{messages:[{content:...}]}]}`
+* `all` – recursively embed all string values up to 2 kB
+* `none` – disable JSON parsing
 
 ## Automated ZIP ingestion
 
