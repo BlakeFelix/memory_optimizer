@@ -69,7 +69,7 @@ def _extract_messages(obj) -> list[str]:
     return messages
 
 
-def _json_to_text(path: str, mode: str) -> str | None:
+def _json_strings(path: str, mode: str) -> list[str] | None:
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -87,6 +87,13 @@ def _json_to_text(path: str, mode: str) -> str | None:
         if not texts:
             texts = _extract_strings(data)
     else:
+        return None
+    return texts
+
+
+def _json_to_text(path: str, mode: str) -> str | None:
+    texts = _json_strings(path, mode)
+    if not texts:
         return None
     return "\n\n".join(texts)
 
@@ -119,16 +126,16 @@ def embed_file(
     index_file = Path(index_path)
     index_file.parent.mkdir(parents=True, exist_ok=True)
     index = _load_index(index_file, factory)
-    vec = None
-    if file.endswith(".json"):
-        text = _json_to_text(file, json_extract)
-        if text:
-            vec = _embed_text(text)
-    if vec is None:
-        vec = _embed(file)
+    vecs = None
+    if file.endswith(".json") and json_extract != "none":
+        texts = _json_strings(file, json_extract)
+        if texts:
+            vecs = np.vstack([_embed_text(t) for t in texts])
+    if vecs is None:
+        vecs = _embed(file)
     if not index.is_trained and hasattr(index, "train"):
-        index.train(vec)
-    index.add(vec)
+        index.train(vecs)
+    index.add(vecs)
     faiss.write_index(index, str(index_file))
 
 
@@ -136,9 +143,10 @@ def recall(file: str, index_path: str, json_extract: str = "auto") -> float:
     """Return similarity score for the file against the index."""
     index = faiss.read_index(str(index_path))
     vec = None
-    if file.endswith(".json"):
-        text = _json_to_text(file, json_extract)
-        if text:
+    if file.endswith(".json") and json_extract != "none":
+        texts = _json_strings(file, json_extract)
+        if texts:
+            text = "\n\n".join(texts)
             vec = _embed_text(text)
     if vec is None:
         vec = _embed(file)
