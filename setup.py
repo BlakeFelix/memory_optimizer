@@ -8,6 +8,7 @@ setup(
         "click>=8.0.0",
         "flask>=2.0.0",
     ],
+    extras_require={"test": ["pytest"]},
     entry_points={
         "console_scripts": [
             "aimem=ai_memory.cli:cli",

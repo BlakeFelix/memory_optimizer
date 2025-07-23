@@ -10,5 +10,5 @@ jobs:
         python-version: '3.11'
     env:
       PYTHONPATH: .
-    - run: pip install -r memory_optimizer/requirements.txt
+    - run: pip install -e .[test]
     - run: pytest -q
