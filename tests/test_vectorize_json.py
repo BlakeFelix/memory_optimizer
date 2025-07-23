@@ -1,24 +1,44 @@
 import json
+import pickle
+import subprocess
+from pathlib import Path
 import faiss
-from ai_memory.vector_embedder import embed_file
 
 
-def test_vectorize_json_messages(tmp_path):
+def test_vectorize_json_auto(tmp_path):
     data = {
         "conversations": [
-            {"messages": [
-                {"content": "hello"},
-                {"content": "world"},
-                {"content": "goodbye"},
-            ]}
+            {
+                "messages": [
+                    {"content": {"parts": ["hello"]}},
+                    {"content": {"parts": ["world"]}},
+                    {"content": {"parts": ["goodbye"]}},
+                ]
+            }
         ]
     }
-    json_file = tmp_path / "conversations.json"
+    json_file = tmp_path / "conv.json"
     json_file.write_text(json.dumps(data))
-    index = tmp_path / "vec.faiss"
+    index = tmp_path / "vec.index"
 
-    embed_file(str(json_file), str(index), "dummy", factory="Flat", json_extract="messages")
+    subprocess.run(
+        [
+            "python",
+            "-m",
+            "ai_memory.cli",
+            "vectorize",
+            str(json_file),
+            "--vector-index",
+            str(index),
+            "--json-extract",
+            "auto",
+        ],
+        check=True,
+    )
 
+    assert index.exists() and index.stat().st_size > 5 * 1024
+    meta = index.with_suffix(".pkl")
+    assert meta.exists()
+    meta_data = pickle.load(open(meta, "rb"))
     idx = faiss.read_index(str(index))
-    assert idx.ntotal == 3
-    assert index.stat().st_size > 2048
+    assert len(meta_data) == idx.ntotal == 3

@@ -65,6 +65,19 @@ aimem vectorize ./chatlogs/claude_memory.json --vector-index ./index.faiss \
   --json-extract messages
 ```
 
+### Embedding & Metadata
+
+```bash
+aimem vectorize export.json --json-extract auto \
+      --vector-index ~/aimemorysystem/memory_store.index
+# Produces memory_store.index + memory_store.pkl
+```
+
+Environment variables:
+
+- `LUNA_VECTOR_DIR` – base directory for vector index and metadata
+- `LUNA_VECTOR_INDEX` – override full path to index file
+
 `--json-extract` controls how JSON logs are parsed:
 
 * `auto` – default, tries `messages` then all strings
