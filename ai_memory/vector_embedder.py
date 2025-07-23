@@ -4,6 +4,9 @@ from pathlib import Path
 import logging
 import os
 import json
+import pickle
+import time
+from uuid import uuid4
 
 import numpy as np
 import faiss
@@ -52,10 +55,9 @@ def _extract_strings(obj, max_size=2048):
     return strings
 
 
-def _extract_messages(obj) -> list[str]:
-    messages = []
+def _iter_messages(obj):
     if not isinstance(obj, dict):
-        return messages
+        return
     convs = obj.get("conversations")
     if isinstance(convs, list):
         for conv in convs:
@@ -64,35 +66,37 @@ def _extract_messages(obj) -> list[str]:
                 for m in msgs:
                     if isinstance(m, dict):
                         content = m.get("content")
-                        if isinstance(content, str) and len(content.encode("utf-8")) < 2048:
-                            messages.append(content)
-    return messages
+                        if isinstance(content, dict):
+                            parts = content.get("parts")
+                            if isinstance(parts, list):
+                                for p in parts:
+                                    if isinstance(p, str) and len(p.encode("utf-8")) <= 2048:
+                                        yield p
+                        elif isinstance(content, str) and len(content.encode("utf-8")) <= 2048:
+                            yield content
 
 
-def _json_strings(path: str, mode: str) -> list[str] | None:
+def _iter_json_strings(path: str, mode: str):
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
         logger.warning("JSON parse error for %s: %s", path, e)
-        return None
+        return []
     if not isinstance(data, (dict, list)):
-        return None
+        return []
     if mode == "messages":
-        texts = _extract_messages(data)
-    elif mode == "all":
-        texts = _extract_strings(data)
-    elif mode == "auto":
-        texts = _extract_messages(data)
-        if not texts:
-            texts = _extract_strings(data)
-    else:
-        return None
-    return texts
+        return list(_iter_messages(data))
+    if mode == "all":
+        return _extract_strings(data)
+    if mode == "auto":
+        texts = list(_iter_messages(data))
+        return texts or _extract_strings(data)
+    return []
 
 
 def _json_to_text(path: str, mode: str) -> str | None:
-    texts = _json_strings(path, mode)
+    texts = _iter_json_strings(path, mode)
     if not texts:
         return None
     return "\n\n".join(texts)
@@ -121,22 +125,56 @@ def embed_file(
     model: str,
     factory: str | None = None,
     json_extract: str = "auto",
-) -> None:
+    *,
+    no_meta: bool = False,
+    verbose: bool = False,
+) -> int:
     """Embed a file into a FAISS index."""
+    start = time.time()
     index_file = Path(index_path)
     index_file.parent.mkdir(parents=True, exist_ok=True)
     index = _load_index(index_file, factory)
+    chunks: list[str] = []
     vecs = None
     if file.endswith(".json") and json_extract != "none":
-        texts = _json_strings(file, json_extract)
-        if texts:
-            vecs = np.vstack([_embed_text(t) for t in texts])
+        chunks = list(_iter_json_strings(file, json_extract))
+        if chunks:
+            vecs = np.vstack([_embed_text(t) for t in chunks])
     if vecs is None:
+        with open(file, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+        chunks = [text]
         vecs = _embed(file)
     if not index.is_trained and hasattr(index, "train"):
         index.train(vecs)
     index.add(vecs)
     faiss.write_index(index, str(index_file))
+
+    if verbose:
+        logger.info("extracted %d chunks", len(chunks))
+        logger.info("added %d vectors", vecs.shape[0])
+
+    if not no_meta:
+        meta_path = index_file.with_suffix(".pkl")
+        meta: list[dict] = []
+        if meta_path.exists():
+            try:
+                with open(meta_path, "rb") as f:
+                    meta = pickle.load(f)
+            except Exception:
+                meta = []
+        for chunk in chunks:
+            meta.append({"id": uuid4().hex, "text": chunk, "timestamp": time.time()})
+        with open(meta_path, "wb") as f:
+            pickle.dump(meta, f, protocol=4)
+
+    if verbose:
+        logger.info("took %.2fs", time.time() - start)
+
+    status = 0
+    if not no_meta:
+        status = 0 if len(meta) == index.ntotal else 1
+    return status
 
 
 def recall(file: str, index_path: str, json_extract: str = "auto") -> float:
@@ -144,7 +182,7 @@ def recall(file: str, index_path: str, json_extract: str = "auto") -> float:
     index = faiss.read_index(str(index_path))
     vec = None
     if file.endswith(".json") and json_extract != "none":
-        texts = _json_strings(file, json_extract)
+        texts = _iter_json_strings(file, json_extract)
         if texts:
             text = "\n\n".join(texts)
             vec = _embed_text(text)

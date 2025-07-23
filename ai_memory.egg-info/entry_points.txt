@@ -1,2 +1,0 @@
-[console_scripts]
-aimem = ai_memory.cli:cli

@@ -24,12 +24,25 @@ def cli():
     default="auto",
     help="Extraction mode for JSON files (auto|messages|all|none)",
 )
-def vectorize(file, vector_index, model, factory, json_extract):
+@click.option("--no-meta", is_flag=True, help="Do not write metadata side-car")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+def vectorize(file, vector_index, model, factory, json_extract, no_meta, verbose):
     """Embed a file into the vector index."""
     from .vector_embedder import embed_file
 
-    embed_file(file, vector_index, model, factory=factory, json_extract=json_extract)
+    status = embed_file(
+        file,
+        vector_index,
+        model,
+        factory=factory,
+        json_extract=json_extract,
+        no_meta=no_meta,
+        verbose=verbose,
+    )
     click.echo(f"\u2713 Embedded {file} into {vector_index}")
+    if status != 0:
+        click.echo("Metadata mismatch", err=True)
+        sys.exit(status)
 
 @cli.command()
 @click.argument("content")
@@ -181,7 +194,8 @@ def import_(json_path):
 @click.option("--dest", default="~/chatlogs", help="Extraction destination")
 @click.option("--index", default=None, help="Vector index for aimem_bld")
 @click.option("--model", default=None, help="Embedding model for aimem_bld")
-def ingest_zip(src, dest, index, model):
+@click.option("--no-meta", is_flag=True, help="Do not write metadata side-car")
+def ingest_zip(src, dest, index, model, no_meta):
     """Scan a directory for chat log ZIPs and import them."""
     try:
         from .ingest import zip_watcher
@@ -190,6 +204,8 @@ def ingest_zip(src, dest, index, model):
             args += ["--index", index]
         if model:
             args += ["--model", model]
+        if no_meta:
+            args += ["--no-meta"]
         zip_watcher.main(args)
     except Exception as e:
         click.echo(f"✗ Failed to ingest ZIPs: {e}", err=True)
