@@ -218,47 +218,53 @@ def ingest_zip(src, dest, index, model, no_meta, verbose):
 
 
 @cli.command(name="convert-metadata")
-@click.argument("pkl_path", type=click.Path(exists=True))
-@click.option("--output", "-o", default=None, help="Output .memories.pkl path")
-def convert_metadata(pkl_path, output):
-    """Convert list metadata to VectorMemory dictionary format."""
-    from pathlib import Path
-    from .metadata_converter import convert_to_memory_entry_format
+@click.argument("pkl_file", type=click.Path(exists=True))
+@click.option("--output", help="Output file path")
+def convert_metadata(pkl_file, output):
+    """Convert metadata between formats."""
+    from .metadata_converter import convert_list_to_dict_format
 
-    out = output or str(Path(pkl_path).with_suffix(".memories.pkl"))
-    try:
-        count = convert_to_memory_entry_format(pkl_path, out)
-        click.echo(f"✓ Converted {count} entries to {out}")
-    except Exception as e:
-        click.echo(f"✗ Conversion failed: {e}", err=True)
-        sys.exit(1)
+    input_path = Path(pkl_file)
+    output_path = Path(output or input_path.with_name(f"{input_path.stem}.memories.pkl"))
+
+    count = convert_list_to_dict_format(input_path, output_path)
+    click.echo(f"✓ Converted {count} entries to {output_path}")
 
 
-@cli.command()
-@click.option("--vector-index", default=None, help="Path to vector index")
+@cli.command(name="debug-index")
+@click.option("--vector-index", help="Path to vector index")
 def debug_index(vector_index):
     """Debug vector index and metadata files."""
+    import faiss
     from pathlib import Path
-    from .vector_memory import VectorMemory
 
-    idx = Path(vector_index) if vector_index else Path(os.getenv("LUNA_VECTOR_INDEX", Path(os.getenv("LUNA_VECTOR_DIR", ".ai_memory")) / "memory_store.index"))
+    if vector_index:
+        index_path = Path(vector_index)
+    else:
+        base = Path(os.getenv("LUNA_VECTOR_DIR", ".ai_memory"))
+        index_path = base / "memory_store.index"
 
-    click.echo(f"Current directory: {os.getcwd()}")
-    click.echo(f"Index path: {idx}")
+    click.echo(f"Checking index at: {index_path}")
+    click.echo(f"Index exists: {index_path.exists()}")
 
-    files = [
-        idx,
-        idx.with_suffix(".pkl"),
-        idx.parent / f"{idx.stem}.memories.pkl",
-        idx.parent / f"{idx.stem}.pkl",
-    ]
-    for f in files:
-        status = "exists" if f.exists() else "missing"
-        click.echo(f"{f}: {status}")
+    if index_path.exists():
+        index = faiss.read_index(str(index_path))
+        click.echo(f"Vectors in index: {index.ntotal}")
 
-    vm = VectorMemory(str(idx))
-    loaded = vm.load()
-    click.echo(f"VectorMemory loaded={loaded} count={len(vm.memories)}")
+    for suffix in [".pkl", ".memories.pkl"]:
+        meta_path = index_path.with_suffix(suffix)
+        if meta_path.exists():
+            with open(meta_path, "rb") as f:
+                data = pickle.load(f)
+            click.echo(f"\n{meta_path.name}:")
+            click.echo(f"  Type: {type(data)}")
+            click.echo(f"  Length: {len(data)}")
+            if isinstance(data, dict) and data:
+                first_key = list(data.keys())[0]
+                first_val = data[first_key]
+                click.echo(f"  First entry type: {type(first_val)}")
+                if hasattr(first_val, "__dict__"):
+                    click.echo(f"  First entry attrs: {vars(first_val)}")
 
 if __name__ == "__main__":
     cli()
