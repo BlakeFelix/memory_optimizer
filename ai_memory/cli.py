@@ -195,7 +195,8 @@ def import_(json_path):
 @click.option("--index", default=None, help="Vector index for aimem_bld")
 @click.option("--model", default=None, help="Embedding model for aimem_bld")
 @click.option("--no-meta", is_flag=True, help="Do not write metadata side-car")
-def ingest_zip(src, dest, index, model, no_meta):
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+def ingest_zip(src, dest, index, model, no_meta, verbose):
     """Scan a directory for chat log ZIPs and import them."""
     try:
         from .ingest import zip_watcher
@@ -206,6 +207,8 @@ def ingest_zip(src, dest, index, model, no_meta):
             args += ["--model", model]
         if no_meta:
             args += ["--no-meta"]
+        if verbose:
+            args += ["--verbose"]
         zip_watcher.main(args)
     except Exception as e:
         click.echo(f"✗ Failed to ingest ZIPs: {e}", err=True)
