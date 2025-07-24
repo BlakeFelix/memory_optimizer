@@ -25,6 +25,17 @@ def main() -> int:
     logger.debug(f"Current dir: {os.getcwd()}")
     logger.debug(f"LUNA_VECTOR_DIR: {os.getenv('LUNA_VECTOR_DIR')}")
 
+    # Force CPU if CUDA is disabled via environment
+    if os.environ.get('CUDA_VISIBLE_DEVICES') == '':
+        logger.info("Running in CPU mode (CUDA disabled)")
+        device = 'cpu'
+    else:
+        try:
+            import torch  # type: ignore
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        except Exception:
+            device = 'cpu'
+
     if not os.path.exists(".ai_memory"):
         for candidate in ["~/memory_optimizer", "."]:
             expanded = os.path.expanduser(candidate)
@@ -37,8 +48,8 @@ def main() -> int:
 
     try:
         from sentence_transformers import SentenceTransformer
-        logger.info("Loading embedding model BAAI/bge-large-en-v1.5 on cuda")
-        model = SentenceTransformer("BAAI/bge-large-en-v1.5")
+        logger.info("Loading embedding model BAAI/bge-large-en-v1.5 on %s", device)
+        model = SentenceTransformer("BAAI/bge-large-en-v1.5", device=device)
     except Exception:  # ImportError or runtime failure
         logger.warning("sentence_transformers not available, using mock embeddings")
         model = None
