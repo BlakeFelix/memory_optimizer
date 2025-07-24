@@ -36,29 +36,53 @@ class VectorMemory:
 
     def load(self) -> bool:
         """Load FAISS index and metadata."""
-        logger.info("Loading index from %s", self.index_path)
-        if self.index_path.exists():
+        search_dirs = [Path("."), Path(os.getenv("LUNA_VECTOR_DIR", ".ai_memory")), Path(".ai_memory")]
+        candidates = []
+        if self.index_path.is_absolute():
+            candidates.append(self.index_path)
+        else:
+            candidates.append(self.index_path)
+            for d in search_dirs:
+                candidates.append(d / self.index_path.name)
+
+        index_file = None
+        for cand in candidates:
+            logger.debug("Looking for index file at %s", cand)
+            if cand.exists():
+                index_file = cand
+                break
+        if index_file:
+            self.index_path = index_file
             try:
-                self.index = faiss.read_index(str(self.index_path))
+                self.index = faiss.read_index(str(index_file))
             except Exception as e:
-                logger.warning("Failed to read index %s: %s", self.index_path, e)
+                logger.warning("Failed to read index %s: %s", index_file, e)
                 self.index = None
         else:
-            logger.warning("Index file %s not found", self.index_path)
+            logger.error("Index file not found. Tried: %s", ", ".join(str(c) for c in candidates))
             self.index = None
 
         meta_obj = None
-        for path in (self.legacy_path, self.meta_path):
-            if path.exists():
+        meta_candidates = [
+            self.legacy_path,
+            self.meta_path,
+            self.index_path.with_suffix(".memories.pkl"),
+            self.index_path.with_suffix(".pkl"),
+        ]
+        for mpath in meta_candidates:
+            logger.debug("Looking for metadata file at %s", mpath)
+            if mpath.exists():
                 try:
-                    with open(path, "rb") as f:
+                    with open(mpath, "rb") as f:
                         meta_obj = pickle.load(f)
+                    path = mpath
                     break
                 except Exception as e:
-                    logger.warning("Failed to read metadata %s: %s", path, e)
+                    logger.warning("Failed to read metadata %s: %s", mpath, e)
         if meta_obj is not None:
             logger.info("Loaded metadata from %s", path)
         if meta_obj is None:
+            logger.error("Metadata files not found")
             self.memories = {}
             self._ordered = []
             return False
