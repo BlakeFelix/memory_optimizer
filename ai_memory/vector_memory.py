@@ -94,7 +94,12 @@ class VectorMemory:
                 if isinstance(v, MemoryEntry):
                     entry = v
                 elif isinstance(v, dict):
-                    entry = MemoryEntry(id=v.get("id", k), text=v.get("text", ""), timestamp=float(v.get("timestamp", 0)))
+                    ts = v.get("timestamp", 0)
+                    entry = MemoryEntry(
+                        id=v.get("id", k),
+                        text=v.get("text", ""),
+                        timestamp=ts.timestamp() if hasattr(ts, "timestamp") else float(ts),
+                    )
                 else:
                     continue
                 mems[entry.id] = entry
@@ -107,7 +112,12 @@ class VectorMemory:
             for item in meta_obj:
                 if isinstance(item, dict):
                     mid = item.get("id") or str(len(ordered))
-                    entry = MemoryEntry(id=mid, text=item.get("text", ""), timestamp=float(item.get("timestamp", 0)))
+                    ts = item.get("timestamp", 0)
+                    entry = MemoryEntry(
+                        id=mid,
+                        text=item.get("text", ""),
+                        timestamp=ts.timestamp() if hasattr(ts, "timestamp") else float(ts),
+                    )
                     mems[mid] = entry
                     ordered.append(entry)
             self.memories = mems
