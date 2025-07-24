@@ -48,8 +48,8 @@ def main() -> int:
 
     try:
         from sentence_transformers import SentenceTransformer
-        logger.info("Loading embedding model BAAI/bge-large-en-v1.5 on %s", device)
-        model = SentenceTransformer("BAAI/bge-large-en-v1.5", device=device)
+        logger.info("Loading embedding model sentence-transformers/distiluse-base-multilingual-cased-v2 on %s", device)
+        model = SentenceTransformer("sentence-transformers/distiluse-base-multilingual-cased-v2", device=device)
     except Exception:  # ImportError or runtime failure
         logger.warning("sentence_transformers not available, using mock embeddings")
         model = None
