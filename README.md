@@ -73,6 +73,14 @@ aimem vectorize export.json --json-extract auto \
 # Produces memory_store.index + memory_store.pkl
 ```
 
+Integration example:
+
+```bash
+export LUNA_VECTOR_DIR="$HOME/aimemorysystem"
+aimem vectorize data.json --json-extract all
+luna "Summarize the memories"
+```
+
 Environment variables:
 
 - `LUNA_VECTOR_DIR` – base directory for vector index and metadata
