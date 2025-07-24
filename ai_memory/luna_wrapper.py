@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from datetime import datetime
 
 from .vector_memory import VectorMemory
@@ -11,6 +12,8 @@ def main() -> int:
     parser.add_argument("query", help="Query text")
     parser.add_argument("--top", "-k", type=int, default=5, help="Number of results")
     args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
 
     vm = VectorMemory()
     if not vm.load():
@@ -23,8 +26,9 @@ def main() -> int:
         return 0
     for entry, score in results:
         ts = datetime.fromtimestamp(entry.timestamp).isoformat()
-        snippet = entry.text.replace("\n", " ")[:120]
-        print(f"{score:.3f}\t{ts}\t{snippet}")
+        snippet = entry.text.replace("\n", " ")
+        summary = snippet if len(snippet) <= 120 else snippet[:117] + "..."
+        print(f"{score:.3f}\t{ts}\t{summary}")
     return 0
 
 

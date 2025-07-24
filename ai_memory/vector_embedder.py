@@ -166,14 +166,26 @@ def embed_file(
                     meta = pickle.load(f)
             except Exception:
                 meta = []
+
         for chunk in chunks:
             meta.append({"id": uuid4().hex, "text": chunk, "timestamp": time.time()})
+
+        if len(meta) != index.ntotal:
+            logger.warning(
+                "metadata count mismatch: %d != %d", len(meta), index.ntotal
+            )
+            if len(meta) > index.ntotal:
+                meta = meta[: index.ntotal]
+            else:
+                for _ in range(index.ntotal - len(meta)):
+                    meta.append({"id": uuid4().hex, "text": "", "timestamp": time.time()})
+
         with open(meta_path, "wb") as f:
             pickle.dump(meta, f, protocol=4)
 
         # legacy dictionary format
         legacy: Dict[str, MemoryEntry] = {
-            m["id"]: MemoryEntry(id=m["id"], text=m["text"], timestamp=m["timestamp"])
+            m["id"]: MemoryEntry(id=m["id"], text=m.get("text", ""), timestamp=m["timestamp"])
             for m in meta
         }
         with open(legacy_path, "wb") as f:

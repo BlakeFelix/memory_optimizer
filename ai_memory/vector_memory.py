@@ -36,6 +36,7 @@ class VectorMemory:
 
     def load(self) -> bool:
         """Load FAISS index and metadata."""
+        logger.info("Loading index from %s", self.index_path)
         if self.index_path.exists():
             try:
                 self.index = faiss.read_index(str(self.index_path))
@@ -55,6 +56,8 @@ class VectorMemory:
                     break
                 except Exception as e:
                     logger.warning("Failed to read metadata %s: %s", path, e)
+        if meta_obj is not None:
+            logger.info("Loaded metadata from %s", path)
         if meta_obj is None:
             self.memories = {}
             self._ordered = []
@@ -95,6 +98,7 @@ class VectorMemory:
                 len(self._ordered),
                 self.index.ntotal,
             )
+        logger.info("Loaded %d memories", len(self._ordered))
         return True
 
     def search(self, query: str, top_k: int = 5) -> List[Tuple[MemoryEntry, float]]:

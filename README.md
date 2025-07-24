@@ -105,3 +105,13 @@ aimem ingest-zip --src ~/Downloads --dest ~/chatlogs
 
 You can also run `ai_memory/ingest/process_new_memories.sh` which calls the same
 utility with sensible defaults.
+
+## Troubleshooting
+
+* **No vector memory found**: check that `LUNA_VECTOR_DIR` points to the folder
+  containing `memory_store.index` and metadata files. Run `aimem vectorize` to
+  create them if needed.
+* **Index/metadata mismatch**: verify `memory_store.index`, `memory_store.pkl`
+  and `memory_store.memories.pkl` exist and contain the same number of entries.
+* Use `LUNA_VECTOR_INDEX` to specify a custom path when running from a different
+  working directory.
