@@ -7,6 +7,8 @@ import json
 import pickle
 import time
 from uuid import uuid4
+from typing import Dict
+from .vector_memory import MemoryEntry
 
 import numpy as np
 import faiss
@@ -156,6 +158,7 @@ def embed_file(
 
     if not no_meta:
         meta_path = index_file.with_suffix(".pkl")
+        legacy_path = index_file.parent / f"{index_file.stem}.memories.pkl"
         meta: list[dict] = []
         if meta_path.exists():
             try:
@@ -167,6 +170,14 @@ def embed_file(
             meta.append({"id": uuid4().hex, "text": chunk, "timestamp": time.time()})
         with open(meta_path, "wb") as f:
             pickle.dump(meta, f, protocol=4)
+
+        # legacy dictionary format
+        legacy: Dict[str, MemoryEntry] = {
+            m["id"]: MemoryEntry(id=m["id"], text=m["text"], timestamp=m["timestamp"])
+            for m in meta
+        }
+        with open(legacy_path, "wb") as f:
+            pickle.dump(legacy, f, protocol=4)
 
     if verbose:
         logger.info("took %.2fs", time.time() - start)
