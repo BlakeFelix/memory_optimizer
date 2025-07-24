@@ -30,6 +30,17 @@ def test_luna_integration(tmp_path):
         "messages",
     ], check=True, env=env)
 
+    meta_file = index.with_suffix(".pkl")
+    legacy_file = index.parent / f"{index.stem}.memories.pkl"
+    if legacy_file.exists():
+        legacy_file.unlink()
+
+    subprocess.run(
+        ["python", "-m", "ai_memory.cli", "convert-metadata", str(meta_file)],
+        check=True,
+        env=env,
+    )
+
     result = subprocess.run(
         ["python", "-m", "ai_memory.luna_wrapper", "hello"],
         stdout=subprocess.PIPE,

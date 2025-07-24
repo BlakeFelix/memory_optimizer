@@ -1,5 +1,7 @@
 import sys
+import os
 import json
+from pathlib import Path
 import click
 
 from .memory_store import MemoryStore
@@ -213,6 +215,50 @@ def ingest_zip(src, dest, index, model, no_meta, verbose):
     except Exception as e:
         click.echo(f"✗ Failed to ingest ZIPs: {e}", err=True)
         sys.exit(1)
+
+
+@cli.command(name="convert-metadata")
+@click.argument("pkl_path", type=click.Path(exists=True))
+@click.option("--output", "-o", default=None, help="Output .memories.pkl path")
+def convert_metadata(pkl_path, output):
+    """Convert list metadata to VectorMemory dictionary format."""
+    from pathlib import Path
+    from .metadata_converter import convert_to_memory_entry_format
+
+    out = output or str(Path(pkl_path).with_suffix(".memories.pkl"))
+    try:
+        count = convert_to_memory_entry_format(pkl_path, out)
+        click.echo(f"✓ Converted {count} entries to {out}")
+    except Exception as e:
+        click.echo(f"✗ Conversion failed: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.option("--vector-index", default=None, help="Path to vector index")
+def debug_index(vector_index):
+    """Debug vector index and metadata files."""
+    from pathlib import Path
+    from .vector_memory import VectorMemory
+
+    idx = Path(vector_index) if vector_index else Path(os.getenv("LUNA_VECTOR_INDEX", Path(os.getenv("LUNA_VECTOR_DIR", ".ai_memory")) / "memory_store.index"))
+
+    click.echo(f"Current directory: {os.getcwd()}")
+    click.echo(f"Index path: {idx}")
+
+    files = [
+        idx,
+        idx.with_suffix(".pkl"),
+        idx.parent / f"{idx.stem}.memories.pkl",
+        idx.parent / f"{idx.stem}.pkl",
+    ]
+    for f in files:
+        status = "exists" if f.exists() else "missing"
+        click.echo(f"{f}: {status}")
+
+    vm = VectorMemory(str(idx))
+    loaded = vm.load()
+    click.echo(f"VectorMemory loaded={loaded} count={len(vm.memories)}")
 
 if __name__ == "__main__":
     cli()

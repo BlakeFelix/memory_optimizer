@@ -8,7 +8,6 @@ import pickle
 import time
 from uuid import uuid4
 from typing import Dict
-from .vector_memory import MemoryEntry
 
 import numpy as np
 import faiss
@@ -183,11 +182,20 @@ def embed_file(
         with open(meta_path, "wb") as f:
             pickle.dump(meta, f, protocol=4)
 
-        # legacy dictionary format
-        legacy: Dict[str, MemoryEntry] = {
-            m["id"]: MemoryEntry(id=m["id"], text=m.get("text", ""), timestamp=m["timestamp"])
-            for m in meta
-        }
+        # VectorMemory dictionary format
+        legacy: Dict[str, dict] = {}
+        for m in meta:
+            ts = float(m["timestamp"])
+            legacy[m["id"]] = {
+                "text": m.get("text", ""),
+                "embedding": None,
+                "metadata": {},
+                "timestamp": ts,
+                "access_count": 1,
+                "last_accessed": ts,
+                "importance": 1.0,
+                "compressed": False,
+            }
         with open(legacy_path, "wb") as f:
             pickle.dump(legacy, f, protocol=4)
 
