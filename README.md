@@ -91,6 +91,8 @@ The `ingest-zip` command extracts chat log archives and imports any `*memory.jso
 
 ```bash
 aimem ingest-zip --src ~/Downloads --dest ~/chatlogs
+# add -v for progress output
+# aimem ingest-zip --src ~/Downloads --dest ~/chatlogs --verbose
 ```
 
 You can also run `ai_memory/ingest/process_new_memories.sh` which calls the same
