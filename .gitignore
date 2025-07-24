@@ -1,5 +1,6 @@
 ai_memory.egg-info/
 .ai_memory/
+# Large data files
 *.pkl
 *.index
 *.faiss

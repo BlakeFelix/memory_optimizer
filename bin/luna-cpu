@@ -4,5 +4,5 @@ os.environ['CUDA_VISIBLE_DEVICES'] = ''  # Force CPU before any imports
 import sys
 from ai_memory.luna_wrapper import main
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     sys.exit(main())
