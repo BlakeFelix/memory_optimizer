@@ -33,6 +33,29 @@ class VectorMemory:
         self.index: faiss.Index | None = None
         self.memories: Dict[str, MemoryEntry] = {}
         self._ordered: List[MemoryEntry] = []
+        self.model = None
+        self.model_name = "BAAI/bge-large-en-v1.5"
+
+    def _load_embedding_model(self) -> None:
+        """Load embedding model with CPU fallback."""
+        try:
+            import torch  # type: ignore
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        except Exception:
+            device = "cpu"
+
+        if os.environ.get("CUDA_VISIBLE_DEVICES") == "":
+            device = "cpu"
+
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+        except Exception:  # pragma: no cover - optional dependency
+            logger.warning("sentence_transformers not available")
+            self.model = None
+            return
+
+        logger.info("Loading embedding model %s on %s", self.model_name, device)
+        self.model = SentenceTransformer(self.model_name, device=device)
 
     def load(self) -> bool:
         """Load FAISS index and metadata."""

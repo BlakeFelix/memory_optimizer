@@ -1,3 +1,7 @@
 ai_memory.egg-info/
 .ai_memory/
 *.pkl
+*.index
+*.faiss
+/aimemorysystem/
+/backup/
