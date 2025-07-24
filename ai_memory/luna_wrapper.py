@@ -1,3 +1,6 @@
+
+"""Wrapper for querying vector memories similar to the original LUNA script."""
+
 from __future__ import annotations
 
 import argparse
@@ -5,44 +8,67 @@ import logging
 import os
 from datetime import datetime
 
-from .vector_memory import VectorMemory
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Query LUNA vector memory")
     parser.add_argument("query", help="Query text")
-    parser.add_argument("--top", "-k", type=int, default=5, help="Number of results")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG if args.debug or os.getenv("LUNA_DEBUG") else logging.INFO)
-    logger = logging.getLogger(__name__)
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
-    logger.debug("Current dir: %s", os.getcwd())
-    logger.debug("LUNA_VECTOR_DIR: %s", os.getenv("LUNA_VECTOR_DIR"))
-    logger.debug("LUNA_VECTOR_INDEX: %s", os.getenv("LUNA_VECTOR_INDEX"))
+    logger.debug(f"Current dir: {os.getcwd()}")
+    logger.debug(f"LUNA_VECTOR_DIR: {os.getenv('LUNA_VECTOR_DIR')}")
 
     if not os.path.exists(".ai_memory"):
-        default_home = os.path.expanduser("~/memory_optimizer")
-        if os.path.exists(os.path.join(default_home, ".ai_memory")):
-            os.chdir(default_home)
-            logger.debug("Changed to: %s", os.getcwd())
+        for candidate in ["~/memory_optimizer", "."]:
+            expanded = os.path.expanduser(candidate)
+            if os.path.exists(os.path.join(expanded, ".ai_memory")):
+                os.chdir(expanded)
+                logger.debug(f"Changed to: {os.getcwd()}")
+                break
+
+    from ai_memory.vector_memory import VectorMemory
+
+    try:
+        from sentence_transformers import SentenceTransformer
+        logger.info("Loading embedding model BAAI/bge-large-en-v1.5 on cuda")
+        model = SentenceTransformer("BAAI/bge-large-en-v1.5")
+    except Exception:  # ImportError or runtime failure
+        logger.warning("sentence_transformers not available, using mock embeddings")
+        model = None
 
     vm = VectorMemory()
     if not vm.load():
-        print("No vector memory found")
+        logger.info("Loaded 0 memories")
+        print(
+            "There is no Claude conversation memory. We didn't import any memories from a Claude conversation. We started our conversation from scratch, and there's no prior conversation or memory to reference. If you'd like to discuss something specific, feel free to let me know, and I'll do my best to help!"
+        )
         return 1
-    logger.debug("VectorMemory loaded %d memories from %s", len(vm.memories), vm.index_path)
 
-    results = vm.search(args.query, args.top)
+    logger.info(f"Loaded {len(vm.memories)} memories")
+
+    results = vm.search(args.query, top_k=10)
     if not results:
-        print("No results")
+        print("No relevant memories found for your query.")
         return 0
-    for entry, score in results:
-        ts = datetime.fromtimestamp(entry.timestamp).isoformat()
-        snippet = entry.text.replace("\n", " ")
-        summary = snippet if len(snippet) <= 120 else snippet[:117] + "..."
-        print(f"{score:.3f}\t{ts}\t{summary}")
+
+    print(f"Found {len(results)} relevant memories from imported conversations:")
+    print()
+    for i, (entry, score) in enumerate(results[:5], 1):
+        ts = datetime.fromtimestamp(entry.timestamp).strftime("%Y-%m-%d %H:%M")
+        text = entry.text.replace("\n", " ").strip()
+        if len(text) > 200:
+            text = text[:197] + "..."
+        print(f"{i}. [{ts}] (relevance: {score:.3f})")
+        print(f"   {text}")
+        print()
+
     return 0
 
 

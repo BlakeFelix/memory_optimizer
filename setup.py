@@ -9,7 +9,10 @@ setup(
         "flask>=2.0.0",
         "faiss-cpu>=1.8.0",
     ],
-    extras_require={"test": ["pytest"]},
+    extras_require={
+        "test": ["pytest"],
+        "embeddings": ["sentence-transformers>=2.0.0"],
+    },
     entry_points={
         "console_scripts": [
             "aimem=ai_memory.cli:cli",
