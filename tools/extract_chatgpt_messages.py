@@ -4,7 +4,7 @@ import json
 import sys
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 import tempfile
 import os
 import logging
@@ -14,60 +14,74 @@ logger = logging.getLogger(__name__)
 
 
 def extract_messages_from_chatgpt(file_path: Path) -> List[str]:
-    """Extract actual message content from ChatGPT export format."""
-    with open(file_path, 'r', encoding='utf-8') as f:
+    """Extract message text from various ChatGPT export formats."""
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     messages: List[str] = []
-    
-    # Handle both single conversation and list of conversations
+
     conversations = data if isinstance(data, list) else [data]
 
     for conv in conversations:
-        if 'mapping' not in conv:
-            continue
+        if "mapping" in conv:
+            title = conv.get("title", "Untitled")
+            mapping = conv["mapping"]
 
-        title = conv.get('title', 'Untitled')
-        mapping = conv['mapping']
-        
-        for node_id, node in mapping.items():
-            if not node or not isinstance(node, dict):
-                continue
-                
-            message = node.get('message')
-            if not message or not isinstance(message, dict):
-                continue
-                
-            content = message.get('content', {})
-            if not isinstance(content, dict):
-                continue
-                
-            parts = content.get('parts', [])
-            if not parts:
-                continue
+            for node in mapping.values():
+                if not node or not isinstance(node, dict):
+                    continue
 
-            # Extract text from parts
-            text_parts: List[str] = []
-            for part in parts:
-                if isinstance(part, str) and part.strip():
-                    text_parts.append(part)
+                message = node.get("message")
+                if not message or not isinstance(message, dict):
+                    continue
 
-            if not text_parts:
-                continue
+                content = message.get("content", {})
+                if not isinstance(content, dict):
+                    continue
 
-            text = ' '.join(text_parts)
-            
-            # Skip short messages or placeholders
-            if len(text) < 20 or text == '...':
-                continue
+                parts = content.get("parts", [])
+                if not parts:
+                    continue
 
-            # Get author role
-            author = message.get('author', {})
-            role = author.get('role', 'unknown') if isinstance(author, dict) else 'unknown'
-            
-            # Format message with context
-            full_text = f"[{title}] {role}: {text}"
-            messages.append(full_text)
+                text_parts: List[str] = [p for p in parts if isinstance(p, str) and p.strip()]
+                if not text_parts:
+                    continue
+
+                text = " ".join(text_parts)
+                if len(text) < 20 or text == "...":
+                    continue
+
+                author = message.get("author", {})
+                role = author.get("role", "unknown") if isinstance(author, dict) else "unknown"
+                full_text = f"[{title}] {role}: {text}"
+                messages.append(full_text)
+
+        elif "chat_messages" in conv:
+            name = conv.get("name", "Untitled")
+            chat_messages = conv.get("chat_messages", [])
+
+            for msg in chat_messages:
+                if not isinstance(msg, dict):
+                    continue
+
+                text = msg.get("text", "")
+
+                if not text and "content" in msg:
+                    content_list = msg.get("content", [])
+                    text_parts = []
+                    for item in content_list:
+                        if isinstance(item, dict) and "text" in item:
+                            text_parts.append(item["text"])
+                    text = " ".join(text_parts)
+
+                if text and len(text) > 20:
+                    role = msg.get("role", "unknown")
+                    if "sender" in msg:
+                        sender = msg["sender"]
+                        role = sender.get("type", "unknown") if isinstance(sender, dict) else "unknown"
+
+                    full_text = f"[{name}] {role}: {text}"
+                    messages.append(full_text)
 
     return messages
 
