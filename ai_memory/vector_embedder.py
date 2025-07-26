@@ -9,8 +9,15 @@ import time
 from uuid import uuid4
 from typing import Dict
 
-from sentence_transformers import SentenceTransformer
-import torch
+try:
+    from sentence_transformers import SentenceTransformer
+except Exception:  # pragma: no cover - optional dependency
+    SentenceTransformer = None  # type: ignore
+
+try:
+    import torch
+except Exception:  # pragma: no cover - optional dependency
+    torch = None  # type: ignore
 
 import numpy as np
 import faiss
@@ -28,13 +35,13 @@ def _get_model():
     global _model
     if _model is None:
         device = "cpu"
-        if os.environ.get("CUDA_VISIBLE_DEVICES") != "":
+        if os.environ.get("CUDA_VISIBLE_DEVICES") != "" and torch is not None:
             try:
-                import torch
-
                 device = "cuda" if torch.cuda.is_available() else "cpu"
             except Exception:
                 pass
+        if SentenceTransformer is None:
+            raise RuntimeError("sentence-transformers is not installed")
         _model = SentenceTransformer(_model_name, device=device)
     return _model
 

@@ -5,16 +5,10 @@ We stub:
   * urllib.request.urlopen → returns canned JSON
 No network or Ollama required.
 """
-import types
 import json
-import builtins
 import urllib.request
 import subprocess
 from ai_memory import chat_with_luna
-
-
-class _DummyPopen:
-    def __init__(self, *a, **kw): pass
 
 
 def _fake_run(cmd, check, capture_output, text):

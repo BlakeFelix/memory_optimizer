@@ -15,7 +15,6 @@ import subprocess
 import sys
 import json
 import urllib.request
-from pathlib import Path
 from typing import Optional
 
 
