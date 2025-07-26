@@ -17,6 +17,8 @@ setup(
         "console_scripts": [
             "aimem=ai_memory.cli:cli",
             "luna=ai_memory.luna_wrapper:main",
+            # new memory-aware chat wrapper
+            "chat-with-luna=ai_memory.chat_with_luna:main",
         ],
     },
     python_requires=">=3.8",
