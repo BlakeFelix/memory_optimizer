@@ -79,6 +79,7 @@ Integration example:
 export LUNA_VECTOR_DIR="$HOME/aimemorysystem"
 aimem vectorize data.json --json-extract all
 luna "Summarize the memories"
+chat-with-luna "Why did we choose FAISS?"
 ```
 
 Environment variables:
