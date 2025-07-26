@@ -2,8 +2,8 @@
 # Setup script for AI Memory system
 
 # 1. Install required Python packages
-echo "Installing required Python packages (click, flask)..."
-pip install click flask
+echo "Installing Python packages listed in requirements.txt..."
+pip install -r memory_optimizer/requirements.txt
 
 # 2. Create shell alias for convenience
 ALIAS_CMD="alias aimem='python -m ai_memory.cli'"

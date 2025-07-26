@@ -18,12 +18,13 @@ The code in `ai_memory/` includes:
 * A Flask-based API server for adding memories, building context, and exporting
   data (`python -m ai_memory.api`).
 * Built-in model configuration with context budgets via `model_config.py`.
-* Convenience setup script `setup_memory_system.sh` to install dependencies
-  and provide usage examples.
+* Convenience setup script `setup_memory_system.sh` to install all
+  dependencies from `requirements.txt` (including Huggingface packages) and
+  provide usage examples.
 
 ## Quick start
 
-Install dependencies and create a helpful alias:
+Install dependencies from `requirements.txt` and create a helpful alias:
 
 ```bash
 ./setup_memory_system.sh
