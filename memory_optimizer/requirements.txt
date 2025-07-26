@@ -2,3 +2,4 @@ click
 flask
 pytest
 faiss-cpu==1.8.0
+sentence-transformers>=2.2.2
