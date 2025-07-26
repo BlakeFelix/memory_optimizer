@@ -26,9 +26,13 @@ class VectorMemory:
     def __init__(self, index_path: str | None = None) -> None:
         base = Path(os.getenv("LUNA_VECTOR_DIR", ".ai_memory"))
         default_index = base / "memory_store.index"
-        self.index_path = Path(os.getenv("LUNA_VECTOR_INDEX", index_path or default_index))
-        self.meta_path = self.index_path.with_suffix(".pkl")
-        self.legacy_path = self.index_path.parent / f"{self.index_path.stem}.memories.pkl"
+        self.index_path = Path(
+            os.getenv("LUNA_VECTOR_INDEX", index_path or default_index)
+        )
+        # Metadata files live alongside the index file
+        self.meta_dir = self.index_path.parent
+        self.meta_path = self.meta_dir / f"{self.index_path.stem}.pkl"
+        self.legacy_path = self.meta_dir / f"{self.index_path.stem}.memories.pkl"
         base.mkdir(parents=True, exist_ok=True)
         self.index: faiss.Index | None = None
         self.memories: Dict[str, MemoryEntry] = {}
