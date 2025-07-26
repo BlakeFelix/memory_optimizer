@@ -8,6 +8,7 @@ MODEL_CONFIGS = {
     "claude-3-sonnet": {"max_tokens": 24000, "safety_margin": 1000},
     "local-llm": {"max_tokens": 4096, "safety_margin": 256},
     "dream-lord": {"max_tokens": 16384, "safety_margin": 1000},
+    "luna": {"max_tokens": 32768, "safety_margin": 2048},
 }
 
 

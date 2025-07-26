@@ -6,3 +6,7 @@ ai_memory.egg-info/
 *.faiss
 /aimemorysystem/
 /backup/
+
+# Bytecode cache
+__pycache__/
+*.pyc
