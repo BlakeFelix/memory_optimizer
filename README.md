@@ -80,6 +80,8 @@ export LUNA_VECTOR_DIR="$HOME/aimemorysystem"
 aimem vectorize data.json --json-extract all
 luna "Summarize the memories"
 chat-with-luna "Why did we choose FAISS?"
+# Chat-with-Luna automatically pulls relevant context from your
+# previous interactions before sending the query to Luna.
 ```
 
 Environment variables:
