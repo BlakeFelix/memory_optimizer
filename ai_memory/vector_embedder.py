@@ -9,31 +9,64 @@ import time
 from uuid import uuid4
 from typing import Dict
 
+from sentence_transformers import SentenceTransformer
+import torch
+
 import numpy as np
 import faiss
 
 logger = logging.getLogger(__name__)
 
 
-_DIMS = 512
+_model = None
+_model_name = "BAAI/bge-large-en-v1.5"
+
+_DIMS = 1024  # BAAI/bge-large-en-v1.5 uses 1024 dimensions
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        device = "cpu"
+        if os.environ.get("CUDA_VISIBLE_DEVICES") != "":
+            try:
+                import torch
+
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except Exception:
+                pass
+        _model = SentenceTransformer(_model_name, device=device)
+    return _model
 
 
 def _embed_text(text: str) -> np.ndarray:
-    """Return an embedding for the given text."""
-    length = float(len(text.encode("utf-8")))
-    vec = np.full((_DIMS,), length, dtype="float32")
-    vec = vec.reshape(1, -1)
-    faiss.normalize_L2(vec)
-    return vec
+    """Return a real embedding for the given text using sentence-transformers."""
+    try:
+        model = _get_model()
+        embedding = model.encode([text], convert_to_numpy=True)
+        return embedding.astype("float32")
+    except Exception as e:
+        logger.warning(f"Failed to create real embedding, falling back to dummy: {e}")
+        length = float(len(text.encode("utf-8")))
+        vec = np.full((_DIMS,), length, dtype="float32")
+        vec = vec.reshape(1, -1)
+        faiss.normalize_L2(vec)
+        return vec
 
 
 def _embed(file: str) -> np.ndarray:
-    """Return a trivial embedding for the given file."""
-    with open(file, "rb") as f:
-        length = len(f.read())
-    vec = np.full((_DIMS,), float(length), dtype="float32").reshape(1, -1)
-    faiss.normalize_L2(vec)
-    return vec
+    """Return an embedding for the given file."""
+    try:
+        with open(file, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+        return _embed_text(text)
+    except Exception:
+        # Fallback for binary files or errors
+        with open(file, "rb") as f:
+            length = len(f.read())
+        vec = np.full((_DIMS,), float(length), dtype="float32").reshape(1, -1)
+        faiss.normalize_L2(vec)
+        return vec
 
 
 def _create_index(factory: str | None) -> faiss.Index:
@@ -71,9 +104,15 @@ def _iter_messages(obj):
                             parts = content.get("parts")
                             if isinstance(parts, list):
                                 for p in parts:
-                                    if isinstance(p, str) and len(p.encode("utf-8")) <= 2048:
+                                    if (
+                                        isinstance(p, str)
+                                        and len(p.encode("utf-8")) <= 2048
+                                    ):
                                         yield p
-                        elif isinstance(content, str) and len(content.encode("utf-8")) <= 2048:
+                        elif (
+                            isinstance(content, str)
+                            and len(content.encode("utf-8")) <= 2048
+                        ):
                             yield content
 
 
@@ -170,14 +209,14 @@ def embed_file(
             meta.append({"id": uuid4().hex, "text": chunk, "timestamp": time.time()})
 
         if len(meta) != index.ntotal:
-            logger.warning(
-                "metadata count mismatch: %d != %d", len(meta), index.ntotal
-            )
+            logger.warning("metadata count mismatch: %d != %d", len(meta), index.ntotal)
             if len(meta) > index.ntotal:
                 meta = meta[: index.ntotal]
             else:
                 for _ in range(index.ntotal - len(meta)):
-                    meta.append({"id": uuid4().hex, "text": "", "timestamp": time.time()})
+                    meta.append(
+                        {"id": uuid4().hex, "text": "", "timestamp": time.time()}
+                    )
 
         with open(meta_path, "wb") as f:
             pickle.dump(meta, f, protocol=4)
