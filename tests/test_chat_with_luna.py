@@ -8,8 +8,11 @@ No network or Ollama required.
 import json
 import urllib.request
 import subprocess
+import os
 from ai_memory import chat_with_luna
 
+
+os.environ.setdefault("LUNA_OFFLINE_TEST", "1")
 
 def _fake_run(cmd, check, capture_output, text):
     class _R:  # minimal CompletedProcess

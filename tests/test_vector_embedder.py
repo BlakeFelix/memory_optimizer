@@ -1,5 +1,16 @@
 import os
+import sys
+import types
+import pytest
+from ai_memory.testing._stubs import FakeSentenceTransformer
 from ai_memory.vector_embedder import embed_file, recall
+
+
+@pytest.fixture(autouse=True)
+def _stub_transformer(monkeypatch):
+    fake_mod = types.SimpleNamespace(SentenceTransformer=FakeSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_mod)
+    monkeypatch.setattr(embed_file.__module__ + ".SentenceTransformer", FakeSentenceTransformer, raising=False)
 
 
 def test_self_heal(tmp_path):

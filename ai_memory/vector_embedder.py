@@ -42,7 +42,10 @@ def _get_model():
                 pass
         if SentenceTransformer is None:
             raise RuntimeError("sentence-transformers is not installed")
-        _model = SentenceTransformer(_model_name, device=device)
+        kwargs = {}
+        if os.getenv("HF_HUB_OFFLINE") or os.getenv("LUNA_OFFLINE_TEST"):
+            kwargs["local_files_only"] = True
+        _model = SentenceTransformer(_model_name, device=device, **kwargs)
     return _model
 
 
