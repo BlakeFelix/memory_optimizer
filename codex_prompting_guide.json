@@ -1,0 +1,338 @@
+{
+  "meta": {
+    "version": "2025-01-28",
+    "philosophy": "Zero-fragility code delegation through one-shot autonomy",
+    "core_principle": "Codex acts, not asks. We have Git as safety net.",
+    "critical_constraints": [
+      "Every file edit MUST use one of: add_file, modify, delete_file, move_file",
+      "NO shell commands for file operations (no chmod, git mv, etc)",
+      "All tests run in network-isolated environment",
+      "Commits only after tests pass, max 72 chars, imperative mood"
+    ]
+  },
+  
+  "environment": {
+    "pre_flight_checks": {
+      "priority": "critical",
+      "description": "Always verify environment before code changes",
+      "checks": [
+        {
+          "check": "virtual_environment",
+          "command": "source venv/bin/activate",
+          "fallback": "python -m venv venv && source venv/bin/activate",
+          "note": "Ensures correct interpreter and packages"
+        },
+        {
+          "check": "dependencies",
+          "command": "pip install -r requirements.txt",
+          "auto_fix": true,
+          "note": "Codex may auto-install on ModuleNotFoundError"
+        },
+        {
+          "check": "configuration",
+          "commands": ["python manage.py check", "echo $DATABASE_URL"],
+          "note": "Validate config/DB state before changes"
+        }
+      ]
+    }
+  },
+  
+  "prompting_rules": {
+    "imperative_verbs": {
+      "required": true,
+      "examples": ["Fix", "Implement", "Refactor", "Upgrade", "Add"],
+      "note": "Start with action verb + clear success criteria"
+    },
+    "success_criteria": {
+      "required": true,
+      "must_include": ["test_command", "expected_outcome"],
+      "examples": [
+        "run pytest and ensure all pass",
+        "npm test with zero failures", 
+        "build completes without warnings"
+      ]
+    },
+    "scope_definition": {
+      "be_specific": true,
+      "examples": {
+        "narrow": "in auth.py's login_user() function",
+        "broad": "across all files in src/",
+        "multi_repo": "in ProjectA's api.py and ProjectB's client.py"
+      }
+    },
+    "deliverables": {
+      "enumerate_all": true,
+      "typical_list": [
+        "code_changes",
+        "tests_for_changes",
+        "documentation_updates",
+        "commit_with_message"
+      ]
+    },
+    "autonomy_level": {
+      "default": "one_shot",
+      "description": "Proceed without asking unless data loss risk",
+      "only_ask_when": ["potential_data_loss", "destructive_migration", "security_critical"]
+    }
+  },
+  
+  "templates": {
+    "_note": "All templates must respect file_operations rules - use metadata, not shell commands",
+    "tiny_change": {
+      "pattern": "codex \"Rename {old} → {new} in {file}, run tests, commit '{message}' and push\"",
+      "example": "codex \"Rename variable userNmae → userName in user_service.py, run tests, commit 'Fix typo in variable name' and push\"",
+      "duration": "< 30 seconds"
+    },
+    "bug_fix": {
+      "pattern": "codex \"{symptom} (trace: {location}). Locate root cause, patch, add test, run {test_cmd}, commit '{message}' and push\"",
+      "example": "codex \"App crashes on None name (trace in logs). Locate root cause, patch, add test, run pytest, commit 'Fix None-name crash' and push\"",
+      "required_elements": ["symptom", "fix", "test", "verification"]
+    },
+    "new_feature": {
+      "pattern": "codex \"Implement {feature}: {components}. {requirements}. Validate tests, commit, push branch {branch}\"",
+      "example": "codex \"Implement password-reset flow: /reset-password endpoint, email util, DB token, tests, docs. Validate tests, commit, push branch feature/reset-password\"",
+      "must_include": ["endpoint", "business_logic", "tests", "documentation"]
+    },
+    "refactor": {
+      "pattern": "codex \"Refactor {component} to {new_pattern}, keep API stable, update tests & docs, commit '{message}' and push\"",
+      "example": "codex \"Refactor Dashboard component to React hooks, keep API stable, update tests & docs, commit 'Dashboard hooks refactor' and push\"",
+      "constraints": ["preserve_behavior", "maintain_api", "update_all_references"]
+    },
+    "dependency_upgrade": {
+      "pattern": "codex \"Upgrade {package} {old_version}→{new_version}, fix deprecations, run all tests, commit '{message}' and push\"",
+      "example": "codex \"Upgrade Django 3→4, fix deprecations, run all tests, commit 'Django 4 upgrade' and push\"",
+      "verify": ["no_deprecation_warnings", "all_tests_pass", "deployment_ready"]
+    },
+    "global_refactor": {
+      "pattern": "codex \"Apply {change} across **all files** ({details}). Update {affected_items}, run full test suite, commit '{message}' and push\"",
+      "example": "codex \"Apply standardized logging across **all files** (replace print() with logger). Update every module accordingly, adjust any tests expecting print output, run full test suite, commit 'Adopt unified logging across modules' and push\"",
+      "scope": "repository_wide"
+    }
+  },
+  
+  "advanced_patterns": {
+    "critical_bugfix_with_rollback": {
+      "description": "For bugs with data integrity risks",
+      "steps": [
+        {
+          "step": "identify_issue",
+          "instruction": "Describe error and when/where it occurs",
+          "example": "checkout_order crashes after charging but before DB save"
+        },
+        {
+          "step": "atomic_fix",
+          "instruction": "Implement transaction or rollback mechanism",
+          "example": "Wrap in DB transaction so failures rollback all changes"
+        },
+        {
+          "step": "test_failure_case",
+          "instruction": "Add test simulating the failure",
+          "example": "Force exception mid-process, assert no partial data saved"
+        },
+        {
+          "step": "verify_integrity",
+          "instruction": "Log rollback events, test for their presence",
+          "example": "Assert 'Transaction rolled back' appears in logs"
+        }
+      ],
+      "full_example": "codex \"API crashes mid-payment (order not saved but payment processed). Implement an atomic solution: wrap checkout_order in a transaction so if any step fails, all DB changes rollback. Add a test that simulates a failure after payment and asserts no order is stored (i.e., state rolled back). Run pytest, ensure all tests pass, commit 'Fix checkout_order crash with rollback' and push.\""
+    },
+    "multi_repo_coordination": {
+      "description": "Changes spanning multiple projects",
+      "requirements": [
+        "access_to_all_repos",
+        "clear_dependency_order",
+        "integration_testing"
+      ],
+      "steps": [
+        {
+          "step": "identify_projects",
+          "instruction": "Name all affected repositories",
+          "example": "ProjectA (library) and ProjectB (application using library)"
+        },
+        {
+          "step": "sequence_changes",
+          "instruction": "Order modifications to prevent breaks",
+          "example": "First update ProjectA, then adapt ProjectB"
+        },
+        {
+          "step": "integration_test",
+          "instruction": "Verify cross-project functionality",
+          "example": "Run ProjectB's commands using ProjectA's output"
+        },
+        {
+          "step": "commit_each",
+          "instruction": "Separate commits with clear messages per repo",
+          "example": "ProjectA: 'Add hashes to output', ProjectB: 'Adapt to new format'"
+        }
+      ],
+      "full_example": "codex \"Update repo_snapshot.py in ProjectA to include file hashes in its output. After that, verify ProjectB's `aimem vectorize` command works with the updated snapshot format. If `aimem vectorize` fails (likely expecting the old format), modify ProjectB accordingly (adjust parsing logic, update any tests). Run tests in both ProjectA and ProjectB, ensure all pass, then commit changes in each with appropriate messages ('Add hashes to snapshot output' and 'Adapt vectorize to new snapshot format').\""
+    }
+  },
+  
+  "iteration_behavior": {
+    "auto_retry": {
+      "enabled": true,
+      "description": "Codex self-corrects on test failures",
+      "max_attempts": "unlimited_until_success",
+      "triggers": ["test_failure", "lint_error", "build_failure"]
+    },
+    "failure_handling": {
+      "missing_files": {
+        "behavior": "create_if_needed",
+        "example": "If tests/ directory missing, create it"
+      },
+      "complex_failures": {
+        "behavior": "iterate_with_analysis",
+        "fallback": "revert_and_try_different_approach"
+      },
+      "environment_issues": {
+        "behavior": "fix_environment_first",
+        "example": "Auto-install missing packages on ImportError"
+      }
+    }
+  },
+  
+  "file_operations": {
+    "critical_rule": "Every edit MUST specify exactly one of: add_file, modify, delete_file, move_file",
+    "metadata_operations": {
+      "description": "Use metadata fields, NOT shell commands",
+      "examples": [
+        {
+          "operation": "modify",
+          "path": "run/setup.sh",
+          "executable": true,
+          "contents": "#!/usr/bin/env bash\n# script content here"
+        },
+        {
+          "operation": "move_file",
+          "from_path": "agents.md",
+          "to_path": "AGENTS.md"
+        }
+      ],
+      "forbidden": ["chmod", "git mv", "mv", "cp"],
+      "note": "NO shell tricks - use metadata fields to set permissions or rename"
+    },
+    "patch_style": {
+      "requirement": "deterministic_operations_only",
+      "avoid": "shell commands that modify files outside the patch engine"
+    }
+  },
+  
+  "forbidden_patterns": {
+    "description": "Common mistakes that break Codex's deterministic execution",
+    "never_do": [
+      {
+        "wrong": "chmod +x script.sh",
+        "right": "Use operation: 'modify' with executable: true"
+      },
+      {
+        "wrong": "git mv old.py new.py",
+        "right": "Use operation: 'move_file' with from_path and to_path"
+      },
+      {
+        "wrong": "echo 'content' > file.txt",
+        "right": "Use operation: 'add_file' or 'modify' with contents"
+      },
+      {
+        "wrong": "cp template.py new.py",
+        "right": "Use operation: 'add_file' with contents from template"
+      }
+    ]
+  },
+  
+  "git_operations": {
+    "commit_rules": {
+      "when": "only_after_all_tests_pass",
+      "message_format": "imperative_mood",
+      "message_length": "max_72_chars",
+      "branch_strategy": {
+        "safe_changes": "current_branch",
+        "risky_changes": "new_feature_branch",
+        "multi_repo": "branch_per_repo"
+      }
+    },
+    "diff_review": {
+      "required": true,
+      "command": "git diff",
+      "check_for": ["unintended_changes", "scope_creep"],
+      "action_if_wrong": "git checkout unwanted_files"
+    },
+    "safety_net": {
+      "always_available": ["git revert", "git reset", "git checkout"],
+      "empty_diff": "report 'no changes needed' instead of empty commit"
+    }
+  },
+  
+  "special_cases": {
+    "no_manual_intervention": {
+      "description": "Even for troubleshooting, describe issue to Codex",
+      "example": "Deployment script failing → tell Codex the error"
+    },
+    "question_handling": {
+      "default": "proceed_without_asking",
+      "only_confirm": ["data_loss_risk", "production_database_migration"],
+      "reassurance": "No need to ask for minor changes - proceed with best judgment"
+    },
+    "binary_files": {
+      "limitation": "cannot_edit_directly",
+      "workaround": "create_placeholder_or_instruction"
+    }
+  },
+  
+  "success_verification": {
+    "mandatory": true,
+    "test_execution": {
+      "environment": "network_isolated",
+      "note": "Always run test_command in Codex's sandboxed environment"
+    },
+    "methods": [
+      {
+        "type": "test_suite",
+        "commands": ["pytest", "npm test", "cargo test"],
+        "requirement": "all_green"
+      },
+      {
+        "type": "build",
+        "commands": ["make build", "npm run build"],
+        "requirement": "zero_errors"
+      },
+      {
+        "type": "linter",
+        "commands": ["eslint .", "flake8", "black --check"],
+        "requirement": "clean_output"
+      }
+    ],
+    "philosophy": "No change is done until all success criteria pass"
+  },
+  
+  "project_integration": {
+    "agents_md": {
+      "description": "Place this guide in repo as AGENTS.md",
+      "benefit": "Codex auto-loads preferences every session"
+    },
+    "global_config": {
+      "path": "~/.codex/AGENTS.md",
+      "scope": "applies_to_all_projects"
+    }
+  },
+  
+  "examples_full_prompts": [
+    {
+      "scenario": "typo_fix",
+      "prompt": "codex \"Fix typo 'recieve' to 'receive' in all Python files, run flake8, commit 'Fix receive typo' and push\""
+    },
+    {
+      "scenario": "security_patch",
+      "prompt": "codex \"SQL injection vulnerability in get_user(). Parameterize the query, add test with malicious input, run security scan, commit 'Fix SQL injection in get_user' and push\""
+    },
+    {
+      "scenario": "performance_optimization",
+      "prompt": "codex \"Profile slow endpoint /api/search. Identify bottleneck, implement caching or query optimization, add performance test asserting <200ms response, run full test suite, commit 'Optimize search endpoint performance' and push\""
+    },
+    {
+      "scenario": "broken_ci",
+      "prompt": "codex \"CI failing on Python 3.12 compatibility. Fix all deprecation warnings, ensure tests pass on 3.8-3.12, update CI matrix, commit 'Add Python 3.12 support' and push\""
+    }
+  ]
+}

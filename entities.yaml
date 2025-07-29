@@ -1,0 +1,171 @@
+- # >>> editbot:start:daemonprime
+# >>> editbot:start:daemonprime
+- id: daemonprime
+  name: daemonprime
+  type: host
+  os: Ubuntu 24.04
+  aliases: [desktop, main pc, daemonprime.local]
+
+  hardware:
+    cpu: Intel Core i9‑14900KF (24 cores / 32 threads · boost up to 6 GHz)
+    motherboard: MSI PRO Z790‑A MAX WiFi (DDR5, PCIe 5.0, Wi‑Fi 7, BT 5.4)
+    gpu:
+      - MSI GeForce RTX 4070 Ti SUPER (16 GB GDDR6X, Compute 8.9)
+      - NVIDIA RTX 3090 FE (24 GB GDDR6X, Compute 8.6)
+    ram: 64 GB (2 × 32 GB) G.SKILL Ripjaws S5 DDR5‑6400 CL32
+    storage:
+      - 2 TB Samsung 990 PRO NVMe PCIe 4.0 x4 (system)
+      # additional NVMe/SATA bays presently empty
+    psu: NZXT C1200 Gold ATX 3.1 (1 200 W, 80 Plus Gold, 12V‑2×6)
+    chassis: Corsair 4000D Airflow mid‑tower (black)
+
+  notes: >
+    Central node of the Daemonworks ecosystem. Hosts vector databases,
+    local LLM / Whisper / Piper inference, net_watchdog scans, and controls
+    LAN‑attached robotics.
+
+    Fully CUDA-enabled dual‑GPU system:
+    - GPU 0 = 4070 Ti SUPER (display + compute)
+    - GPU 1 = 3090 (headless compute)
+
+    PyTorch installed in local venv (CUDA 12.1).  
+    Max load benchmark: 8192×8192 matmul in <0.05 s per GPU.
+
+    Continuous-duty, low-noise profile. Configured for hot-swap and benchmark reproducibility.
+# <<< editbot:end:daemonprime
+
+- id: legion
+  name: Legion-Laptop
+  type: host
+  os: Windows 11 Pro
+  aliases: [laptop, legion]
+  notes: >
+    Portable system with access to voice stack and IDEs. Limited persistent
+    memory; offloads major compute to daemonprime.
+
+- id: legion-daemon
+  name: Voice Daemon (Legion)
+  type: daemon
+  host: legion
+  aliases: [voice assistant, legion voice]
+  notes: >
+    Runs Whisper.cpp and Piper stack. Handles ASR + TTS locally and may
+    route parsed command intents to daemonprime or agents.
+
+- id: blake
+  name: Blake
+  type: person
+  aliases: [me, user, human, daemonprime user]
+  notes: >
+    Primary operator and creator. Thinks out loud. Curious, improvisational.
+    May issue contradictory instructions. Tends to multitask across voice,
+    keyboard, browser, and notebooks.
+
+- id: gpt
+  name: ChatGPT (o3)
+  type: llm
+  aliases: [gpt, assistant, openai]
+  notes: >
+    Preferred for structured responses, safe long-context inference,
+    and project-aware refactors.
+
+- id: claude
+  name: Claude 3 Sonnet
+  type: llm
+  aliases: [claude, anthropic]
+  notes: >
+    Provides alternate memory compression and voice-oriented summarization.
+    Occasionally consulted for divergent perspectives or sanity checks.
+
+- id: bot-arm
+  name: Desk Robot Arm
+  type: robot
+  host: 192.168.1.72:9000
+  aliases: [desk-arm, robot arm]
+  notes: >
+    Experimental REST-controlled 4-DOF actuator. Limited workspace but
+    precise. Taskable from daemonprime.
+
+- id: printer
+  name: Brother HL-2350DW
+  type: peripheral
+  host: 192.168.1.45
+  aliases: [laser printer, p1]
+  notes: >
+    B&W laser printer. Locally available via IPP.
+
+- id: codex
+  name: OpenAI Codex
+  type: llm
+  aliases: [codex, openai codex, oai codex, code assistant]
+  notes: >
+    OpenAI's GPT-3-derived model specialized for code generation and editing tasks.
+    Excels at code completion and structured code edits (e.g. refactoring, adding
+    boilerplate) given adequate context. Blake often pastes rough code into it and
+    expects complete file replacements with minimal editing. Blake:ya, it can iterate things until they work and push the whole thing to github so I can just pull it back and reposnap or 
+    run it. it starts with little context other than the repo it wakes in, but is tenacious enough to usually succeed.   docs: codex_prompting_guide.md  # detailed prompting guide likely   in project files
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CORE AI AGENTS (extended with model + context info)
+# ─────────────────────────────────────────────────────────────────────────────
+luna:
+  aliases: [Luna AI, luna_agent, "✨ Luna ✨"]
+  type: ai_agent
+  description: |
+    Primary *local* conversational AI running on DaemonPrime.
+    Uses an Ollama‑served LLaMA‑3‑8B‑Instruct‑Q4_K_M backend plus the
+    Sentence‑Transformers `BAAI/bge-large-en-v1.5` embedder for vector search.
+  # ── NEW FIELDS ─────────────────────────────────────────────────────────────
+  model:
+    name: "llama3:8b-instruct-q4_K_M"
+    provider: "ollama-local"
+    context_window: 8192      # tokens available to the model
+    default_temperature: 0.7  # can be overridden per call
+    embedding_model: "BAAI/bge-large-en-v1.5"
+  # ───────────────────────────────────────────────────────────────────────────
+  memory_strategy: always_include
+  tags: [local, primary, llm]
+
+chatgpt:
+  aliases: [gpt, gpt‑4, o3‑pro, "ChatGPT‑o3"]
+  type: ai_agent
+  description: |
+    OpenAI Chat model (GPT‑4o‑Pro) used for critical code / architecture
+    queries.  Accessed via the local `o3` wrapper; **no API cost** when
+    invoked through a browser session, but billable if the OPENAI_API_KEY
+    route is enabled.
+  model:
+    name: "gpt-4o-pro"
+    provider: "openai"
+    context_window: 128000
+  memory_strategy: similarity_only
+  tags: [external, fallback]
+
+claude:
+  aliases: [anthropic, claude‑3, sonnet]
+  type: ai_agent
+  description: |
+    Anthropic Claude 3 Sonnet, preferred for summarisation and divergent
+    ideation.  Access requires ANTHROPIC_API_KEY but is currently *stubbed*
+    to a local role‑play prompt for zero‑cost experimentation.
+  model:
+    name: "claude-3-sonnet"
+    provider: "anthropic"
+    context_window: 200000
+  memory_strategy: similarity_only
+  tags: [external, summariser]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REPO‑WIDE DEFAULTS  ← *NEW GLOBAL ENTRY*  (add this to every repo)
+# ─────────────────────────────────────────────────────────────────────────────
+defaults:
+  type: system
+  description: |
+    Canonical defaults used by tooling if a specific field is missing in an
+    entity record.  **Do not remove.**
+  # Any key placed here acts as a safe fallback.
+  model:
+    context_window: 4096
+    default_temperature: 0.7
+  memory_strategy: low_priority
+
