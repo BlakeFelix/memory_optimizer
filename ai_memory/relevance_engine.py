@@ -1,14 +1,21 @@
 import math
+import os
 from datetime import datetime, timezone
 from typing import Dict, Any
 
 from .memory import Memory
 from .token_counter import TokenCounter
+from .vector_memory import VectorMemory
 
 
 class RelevanceEngine:
     def __init__(self):
         self.token_counter = TokenCounter()
+        self.vector_memory = VectorMemory()
+        try:
+            self.vector_memory.load()
+        except Exception:
+            self.vector_memory = None
 
     def _semantic_similarity(self, a: str, b: str) -> float:
         """Placeholder for semantic similarity."""
@@ -49,5 +56,28 @@ class RelevanceEngine:
                 "score": score,
                 "token_cost": self.token_counter.count(memory.content),
             }
+
+        # incorporate vector memory hits
+        if self.vector_memory and task:
+            hits = self.vector_memory.search(task, top_k=5)
+            if hits:
+                max_dist = max(abs(h[1]) for h in hits) or 1.0
+                for entry, dist in hits:
+                    mem = Memory(
+                        memory_id=entry.id,
+                        content=entry.text,
+                        timestamp=datetime.fromtimestamp(entry.timestamp, tz=timezone.utc),
+                        type="vector",  # type: ignore[str]
+                        project_id=None,
+                        entities=set(),
+                        importance_weight=1.0,
+                        access_count=1,
+                    )
+                    vec_score = (abs(dist) / max_dist) * 20
+                    scores[mem.memory_id] = {
+                        "memory": mem,
+                        "score": vec_score,
+                        "token_cost": self.token_counter.count(mem.content),
+                    }
 
         return scores

@@ -95,6 +95,9 @@ Environment variables:
 
 - `LUNA_VECTOR_DIR` – base directory for vector index and metadata
 - `LUNA_VECTOR_INDEX` – override full path to index file
+- `AIMEM_MAX_MEMORIES` – max fragments before compaction (default 1000)
+- `AIMEM_SUMMARY_TOKENS` – token limit for summaries (default 120)
+- `AIMEM_COMPRESS_BATCH` – number of fragments to compress at once (default 500)
 
 `--json-extract` controls how JSON logs are parsed:
 

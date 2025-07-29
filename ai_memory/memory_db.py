@@ -106,7 +106,8 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
             importance      REAL,
             source_type     TEXT,
             token_estimate  INTEGER,
-            created_at      TEXT
+            created_at      TEXT,
+            access_count    INTEGER DEFAULT 1
         );
         """
     )
@@ -119,6 +120,10 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     cols = [row[1] for row in cur.fetchall()]
     if "source_type" not in cols:
         conn.execute("ALTER TABLE memory_fragments ADD COLUMN source_type TEXT")
+    if "access_count" not in cols:
+        conn.execute(
+            "ALTER TABLE memory_fragments ADD COLUMN access_count INTEGER DEFAULT 1"
+        )
 
 
 @contextmanager

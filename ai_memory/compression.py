@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 
 from .token_counter import TokenCounter
@@ -8,17 +9,21 @@ from .token_counter import TokenCounter
 class MemoryCompressor:
     """Stateless helpers to shrink memory fragments."""
 
-    def __init__(self) -> None:
+    def __init__(self, summary_tokens: int | None = None) -> None:
         self.counter = TokenCounter()
+        self.summary_tokens = summary_tokens or int(
+            os.getenv("AIMEM_SUMMARY_TOKENS", 120)
+        )
 
     # ------------------------------------------------------------------
     # internal helpers
     # ------------------------------------------------------------------
     def _trim(self, text: str) -> str:
         tokens = text.split()
-        if len(tokens) <= 120:
+        limit = self.summary_tokens
+        if len(tokens) <= limit:
             return " ".join(tokens)
-        return " ".join(tokens[:120])
+        return " ".join(tokens[:limit])
 
     # ------------------------------------------------------------------
     # public API

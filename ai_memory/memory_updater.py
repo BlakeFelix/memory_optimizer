@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import List
 
 from .memory_store import MemoryStore
@@ -9,10 +10,12 @@ from .compression import MemoryCompressor
 class MemoryUpdater:
     """Maintain size of the memory table with lightweight summarisation."""
 
-    def __init__(self, store: MemoryStore, max_size: int = 1000) -> None:
+    def __init__(self, store: MemoryStore, max_size: int | None = None) -> None:
         self.memory_store = store
-        self.max_size = max_size
-        self.compressor = MemoryCompressor()
+        self.max_size = max_size or int(os.getenv("AIMEM_MAX_MEMORIES", 1000))
+        self.batch_size = int(os.getenv("AIMEM_COMPRESS_BATCH", 500))
+        summary_tokens = int(os.getenv("AIMEM_SUMMARY_TOKENS", 120))
+        self.compressor = MemoryCompressor(summary_tokens)
 
     def post_conversation_update(self, conversation_log: str) -> None:
         """Entry point after a conversation exchange."""
@@ -42,9 +45,11 @@ class MemoryUpdater:
             return
 
         sorted_mems = sorted(
-            memories.values(), key=lambda m: (m.importance_weight, m.timestamp)
+            memories.values(),
+            key=lambda m: (m.importance_weight, -m.access_count, m.timestamp),
         )
         k = len(memories) - self.max_size + 1
+        k = min(k, self.batch_size)
         to_summarise = sorted_mems[:k]
 
         combined = "\n".join(m.content for m in to_summarise)

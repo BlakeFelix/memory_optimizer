@@ -11,7 +11,7 @@ class MemoryOptimizer:
         self.memory_store = MemoryStore()
         self.relevance_engine = RelevanceEngine()
         self.token_counter = TokenCounter()
-        self.context_builder = ContextBuilder()
+        self.context_builder = ContextBuilder(self.memory_store)
 
     def _calculate_token_budget(self, model_spec: Dict[str, Any]) -> int:
         return int(model_spec.get("max_tokens", 0))

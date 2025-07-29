@@ -55,8 +55,8 @@ class MemoryStore:
         cur.execute(
             """
             INSERT INTO memory_fragments
-                (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type)
-            VALUES (?,?,?,?,?,?,?,?)
+                (mem_id, conv_id, msg_id, content, importance, token_estimate, created_at, source_type, access_count)
+            VALUES (?,?,?,?,?,?,?,?,?)
             """,
             (
                 mem_id,
@@ -67,6 +67,7 @@ class MemoryStore:
                 rough_token_len(content),
                 ts,
                 source_type,
+                1,
             ),
         )
         self.conn.commit()
@@ -76,7 +77,7 @@ class MemoryStore:
         ts = datetime.now(tz=timezone.utc).isoformat()
         cur = self.conn.cursor()
         cur.execute(
-            "UPDATE memory_fragments SET created_at=? WHERE mem_id=?",
+            "UPDATE memory_fragments SET created_at=?, access_count=access_count+1 WHERE mem_id=?",
             (ts, mem_id),
         )
         self.conn.commit()
@@ -84,10 +85,10 @@ class MemoryStore:
     def get_all(self) -> Dict[str, Memory]:
         cur = self.conn.cursor()
         cur.execute(
-            "SELECT mem_id, conv_id, content, importance, created_at, source_type FROM memory_fragments"
+            "SELECT mem_id, conv_id, content, importance, created_at, source_type, access_count FROM memory_fragments"
         )
         memories: Dict[str, Memory] = {}
-        for mem_id, conv_id, content, importance, created_at, source_type in cur.fetchall():
+        for mem_id, conv_id, content, importance, created_at, source_type, access_count in cur.fetchall():
             try:
                 ts = datetime.fromisoformat(created_at)
             except Exception:
@@ -100,6 +101,6 @@ class MemoryStore:
                 project_id=conv_id,
                 importance_weight=float(importance),
                 entities=set(),
-                access_count=0,
+                access_count=int(access_count or 0),
             )
         return memories
