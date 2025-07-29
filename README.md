@@ -58,6 +58,12 @@ Import a structured JSON log into the memory database:
 aimem import ./chatlogs/claude_memory.json
 ```
 
+To compact old memories into a summary, run:
+
+```bash
+aimem vacuum
+```
+
 Embed a chat log into a vector index. For ChatGPT exports use
 `--json-extract messages` so only the conversation text is embedded:
 

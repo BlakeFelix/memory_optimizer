@@ -2,6 +2,8 @@ import os
 import sys
 import types
 import pytest
+
+pytestmark = pytest.mark.slow
 from ai_memory.testing._stubs import FakeSentenceTransformer
 from ai_memory.vector_embedder import embed_file, recall
 

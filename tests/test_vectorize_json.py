@@ -3,6 +3,9 @@ import pickle
 import subprocess
 from pathlib import Path
 import faiss
+import pytest
+
+pytestmark = pytest.mark.slow
 
 
 def test_vectorize_json_auto(tmp_path):

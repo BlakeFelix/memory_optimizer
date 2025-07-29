@@ -1,4 +1,5 @@
 import subprocess, json, os, sys, tempfile, time
+import pytest
 
 
 def _run(cmd, env=None):
@@ -94,6 +95,7 @@ def test_console_script_import(tmp_path):
     assert count == 2
 
 
+@pytest.mark.slow
 def test_vectorize(tmp_path):
     txt = tmp_path / "sample.txt"
     txt.write_text("hello")
