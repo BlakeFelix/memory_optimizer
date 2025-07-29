@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+import faiss
+
 from .memory import Memory
 from .token_counter import TokenCounter
 from .vector_memory import VectorMemory
@@ -28,7 +30,7 @@ class RelevanceEngine:
         current_project_id = None
         current_entities = set()
 
-        sym_scores = []
+        seen_texts = set()
 
         for memory_id, memory in memories.items():
             score = 0.0
@@ -58,19 +60,16 @@ class RelevanceEngine:
                 "score": score,
                 "token_cost": self.token_counter.count(memory.content),
             }
-            sym_scores.append(score)
-
-        max_sym_score = max(sym_scores) if sym_scores else 1.0
+            seen_texts.add(memory.content)
 
         # incorporate vector memory hits
         if self.vector_memory and task:
-            hits = self.vector_memory.search(task, top_k=5)
+            hits = self.vector_memory.search(task, top_k=8)
             if hits:
-                dists = [h[1] for h in hits]
-                d_min = min(dists)
-                d_max = max(dists)
-                d_range = d_max - d_min or 1.0
+                metric = getattr(self.vector_memory.index, "metric_type", None)
                 for entry, dist in hits:
+                    if entry.text in seen_texts:
+                        continue
                     mem = Memory(
                         memory_id=entry.id,
                         content=entry.text,
@@ -81,12 +80,16 @@ class RelevanceEngine:
                         importance_weight=1.0,
                         access_count=1,
                     )
-                    norm = 1.0 - (dist - d_min) / d_range
-                    vec_score = norm * max_sym_score
+                    similarity = dist
+                    if metric == faiss.METRIC_L2:
+                        similarity = 1.0 - dist
+                    similarity = max(0.0, min(float(similarity), 1.0))
+                    vec_score = 20 * similarity
                     scores[mem.memory_id] = {
                         "memory": mem,
                         "score": vec_score,
                         "token_cost": self.token_counter.count(mem.content),
                     }
+                    seen_texts.add(mem.content)
 
         return scores

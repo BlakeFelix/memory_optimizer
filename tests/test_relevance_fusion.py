@@ -8,6 +8,7 @@ from ai_memory.vector_embedder import embed_file
 from ai_memory.memory_db import _ensure_schema
 from ai_memory.memory_store import MemoryStore
 from ai_memory.relevance_engine import RelevanceEngine
+from ai_memory.context_builder import ContextBuilder
 
 @pytest.fixture(autouse=True)
 def _stub_transformer(monkeypatch):
@@ -36,7 +37,7 @@ def test_vector_hit_scored(tmp_path, monkeypatch):
     assert "vector memory test" in contents
 
 
-def test_partial_match(tmp_path, monkeypatch):
+def test_vector_fusion(tmp_path, monkeypatch):
     txt = tmp_path / "doc.txt"
     txt.write_text("alpha beta")
     index = tmp_path / "mem.index"
@@ -50,6 +51,29 @@ def test_partial_match(tmp_path, monkeypatch):
     store = MemoryStore(conn)
 
     engine = RelevanceEngine()
+    builder = ContextBuilder(store)
     scores = engine.score_all(store.get_all(), "beta", None)
-    contents = [v["memory"].content for v in scores.values()]
-    assert "alpha beta" in contents
+    context = builder.build_layers(scores, token_budget=50)
+    assert "alpha beta" in context
+
+
+def test_no_duplication(tmp_path, monkeypatch):
+    txt = tmp_path / "doc.txt"
+    txt.write_text("alpha beta")
+    index = tmp_path / "mem.index"
+    embed_file(str(txt), str(index), "dummy", factory="Flat")
+
+    monkeypatch.setenv("LUNA_VECTOR_DIR", str(tmp_path))
+    monkeypatch.setenv("LUNA_VECTOR_INDEX", str(index))
+
+    conn = sqlite3.connect(":memory:")
+    _ensure_schema(conn)
+    store = MemoryStore(conn)
+    store.add("alpha beta", importance=1.0)
+
+    engine = RelevanceEngine()
+    builder = ContextBuilder(store)
+    scores = engine.score_all(store.get_all(), "beta", None)
+    context = builder.build_layers(scores, token_budget=50)
+    assert context.count("alpha beta") == 1
+
