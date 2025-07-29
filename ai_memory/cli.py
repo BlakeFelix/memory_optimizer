@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import click
 
+from .memory_updater import MemoryUpdater
+
 from .memory_store import MemoryStore
 from .database import MemoryDatabase
 from .model_config import get_model_budget
@@ -231,6 +233,19 @@ def convert_metadata(pkl_file, output):
     click.echo(f"✓ Converted {count} entries to {output_path}")
 
 
+@cli.command()
+def vacuum():
+    """Force compaction of the memory store."""
+    try:
+        store = MemoryStore()
+        updater = MemoryUpdater(store)
+        updater._compress_old_memories()
+        click.echo("✓ Memory vacuum complete")
+    except Exception as e:
+        click.echo(f"✗ Vacuum failed: {e}", err=True)
+        sys.exit(1)
+
+
 @cli.command(name="debug-index")
 @click.option("--vector-index", help="Path to vector index")
 def debug_index(vector_index):
@@ -268,3 +283,4 @@ def debug_index(vector_index):
 
 if __name__ == "__main__":
     cli()
+

@@ -2,6 +2,9 @@ import os
 import subprocess
 import json
 import pickle
+import pytest
+
+pytestmark = pytest.mark.slow
 
 from ai_memory.vector_memory import VectorMemory
 

@@ -1,6 +1,9 @@
 import os
 import subprocess
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.slow
 
 
 def test_luna_loads_memories(tmp_path):
