@@ -1,9 +1,12 @@
 from typing import Dict, List
 
 from .memory import Memory
+from .memory_store import MemoryStore
 
 
 class ContextBuilder:
+    def __init__(self, store: MemoryStore) -> None:
+        self.memory_store = store
     def build_layers(
         self, scored_memories: Dict[str, Dict], token_budget: int
     ):
@@ -45,6 +48,13 @@ class ContextBuilder:
                 if tokens_used + mem["token_cost"] <= token_budget * 0.95:
                     context_layers["supplemental"].append(mem["memory"])
                     tokens_used += mem["token_cost"]
+
+        for m in (
+            context_layers["essential"]
+            + context_layers["relevant"]
+            + context_layers["supplemental"]
+        ):
+            self.memory_store.update_access(m.memory_id)
 
         return self._format_context(context_layers, tokens_used)
 
