@@ -34,3 +34,22 @@ def test_vector_hit_scored(tmp_path, monkeypatch):
     scores = engine.score_all(store.get_all(), "vector memory test", None)
     contents = [v["memory"].content for v in scores.values()]
     assert "vector memory test" in contents
+
+
+def test_partial_match(tmp_path, monkeypatch):
+    txt = tmp_path / "doc.txt"
+    txt.write_text("alpha beta")
+    index = tmp_path / "mem.index"
+    embed_file(str(txt), str(index), "dummy", factory="Flat")
+
+    monkeypatch.setenv("LUNA_VECTOR_DIR", str(tmp_path))
+    monkeypatch.setenv("LUNA_VECTOR_INDEX", str(index))
+
+    conn = sqlite3.connect(":memory:")
+    _ensure_schema(conn)
+    store = MemoryStore(conn)
+
+    engine = RelevanceEngine()
+    scores = engine.score_all(store.get_all(), "beta", None)
+    contents = [v["memory"].content for v in scores.values()]
+    assert "alpha beta" in contents
