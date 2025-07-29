@@ -28,6 +28,8 @@ class RelevanceEngine:
         current_project_id = None
         current_entities = set()
 
+        sym_scores = []
+
         for memory_id, memory in memories.items():
             score = 0.0
 
@@ -56,12 +58,18 @@ class RelevanceEngine:
                 "score": score,
                 "token_cost": self.token_counter.count(memory.content),
             }
+            sym_scores.append(score)
+
+        max_sym_score = max(sym_scores) if sym_scores else 1.0
 
         # incorporate vector memory hits
         if self.vector_memory and task:
             hits = self.vector_memory.search(task, top_k=5)
             if hits:
-                max_dist = max(abs(h[1]) for h in hits) or 1.0
+                dists = [h[1] for h in hits]
+                d_min = min(dists)
+                d_max = max(dists)
+                d_range = d_max - d_min or 1.0
                 for entry, dist in hits:
                     mem = Memory(
                         memory_id=entry.id,
@@ -73,7 +81,8 @@ class RelevanceEngine:
                         importance_weight=1.0,
                         access_count=1,
                     )
-                    vec_score = (abs(dist) / max_dist) * 20
+                    norm = 1.0 - (dist - d_min) / d_range
+                    vec_score = norm * max_sym_score
                     scores[mem.memory_id] = {
                         "memory": mem,
                         "score": vec_score,
