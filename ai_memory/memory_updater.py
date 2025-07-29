@@ -46,7 +46,7 @@ class MemoryUpdater:
 
         sorted_mems = sorted(
             memories.values(),
-            key=lambda m: (m.importance_weight, -m.access_count, m.timestamp),
+            key=lambda m: (m.importance_weight, m.access_count, m.timestamp),
         )
         k = len(memories) - self.max_size + 1
         k = min(k, self.batch_size)

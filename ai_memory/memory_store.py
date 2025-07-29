@@ -67,7 +67,7 @@ class MemoryStore:
                 rough_token_len(content),
                 ts,
                 source_type,
-                1,
+                0,
             ),
         )
         self.conn.commit()
