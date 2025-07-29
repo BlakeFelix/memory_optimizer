@@ -18,4 +18,4 @@ def test_access_increment_on_build():
     builder.build_layers(scored, token_budget=100)
 
     new_mem = store.get_all()[mem_id]
-    assert new_mem.access_count > 1
+    assert new_mem.access_count > 0

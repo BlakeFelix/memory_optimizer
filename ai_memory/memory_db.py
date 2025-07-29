@@ -107,7 +107,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
             source_type     TEXT,
             token_estimate  INTEGER,
             created_at      TEXT,
-            access_count    INTEGER DEFAULT 1
+            access_count    INTEGER DEFAULT 0
         );
         """
     )
@@ -122,7 +122,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE memory_fragments ADD COLUMN source_type TEXT")
     if "access_count" not in cols:
         conn.execute(
-            "ALTER TABLE memory_fragments ADD COLUMN access_count INTEGER DEFAULT 1"
+            "ALTER TABLE memory_fragments ADD COLUMN access_count INTEGER DEFAULT 0"
         )
 
 
