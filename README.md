@@ -80,6 +80,10 @@ aimem vectorize export.json --json-extract auto \
 # Produces memory_store.index + memory_store.pkl
 ```
 
+Semantic search requires `sentence-transformers` and `torch` for real
+embeddings.  If they are absent, the code falls back to a lightweight
+stub so basic commands still work.
+
 Integration example:
 
 ```bash
