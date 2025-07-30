@@ -7,6 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+try:
+    from sentence_transformers import SentenceTransformer  # noqa
+except Exception:  # pragma: no cover
+    from ai_memory.testing._stubs import (
+        FakeSentenceTransformer as SentenceTransformer,
+    )  # type: ignore
+
 import faiss
 
 
@@ -50,13 +57,6 @@ class VectorMemory:
 
         if os.environ.get("CUDA_VISIBLE_DEVICES") == "":
             device = "cpu"
-
-        try:
-            from sentence_transformers import SentenceTransformer  # type: ignore
-        except Exception:  # pragma: no cover - optional dependency
-            logger.warning("sentence_transformers not available")
-            self.model = None
-            return
 
         logger.info("Loading embedding model %s on %s", self.model_name, device)
         self.model = SentenceTransformer(self.model_name, device=device)

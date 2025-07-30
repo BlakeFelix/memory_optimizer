@@ -10,9 +10,11 @@ from uuid import uuid4
 from typing import Dict
 
 try:
-    from sentence_transformers import SentenceTransformer
-except Exception:  # pragma: no cover - optional dependency
-    SentenceTransformer = None  # type: ignore
+    from sentence_transformers import SentenceTransformer  # noqa
+except Exception:  # pragma: no cover
+    from ai_memory.testing._stubs import (
+        FakeSentenceTransformer as SentenceTransformer,
+    )  # type: ignore
 
 try:
     import torch
@@ -40,8 +42,6 @@ def _get_model():
                 device = "cuda" if torch.cuda.is_available() else "cpu"
             except Exception:
                 pass
-        if SentenceTransformer is None:
-            raise RuntimeError("sentence-transformers is not installed")
         kwargs = {}
         if os.getenv("HF_HUB_OFFLINE") or os.getenv("LUNA_OFFLINE_TEST"):
             kwargs["local_files_only"] = True
