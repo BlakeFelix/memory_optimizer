@@ -17,6 +17,7 @@ def test_vector_compatibility(tmp_path):
     env = os.environ.copy()
     env["LUNA_VECTOR_DIR"] = str(tmp_path)
     env["LUNA_VECTOR_INDEX"] = str(index)
+    env["AIMEM_DISABLE_TORCH"] = "1"
     os.environ.update(env)
 
     subprocess.run([

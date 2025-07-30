@@ -102,6 +102,7 @@ Environment variables:
 - `AIMEM_MAX_MEMORIES` – max fragments before compaction (default 1000)
 - `AIMEM_SUMMARY_TOKENS` – token limit for summaries (default 120)
 - `AIMEM_COMPRESS_BATCH` – number of fragments to compress at once (default 500)
+- `AIMEM_DISABLE_TORCH` – set to `1` to run without Torch/SentenceTransformer
 
 `--json-extract` controls how JSON logs are parsed:
 
