@@ -8,6 +8,17 @@ import logging
 import os
 from datetime import datetime
 
+import os, types, sys
+if os.getenv('AIMEM_DISABLE_TORCH', '').lower() in {'1', 'true'}:
+    from ai_memory.testing._stubs import FakeSentenceTransformer as SentenceTransformer
+    # Ensure any later 'import sentence_transformers' gets the stub
+    sys.modules.setdefault(
+        'sentence_transformers',
+        types.SimpleNamespace(SentenceTransformer=SentenceTransformer)
+    )
+else:
+    from sentence_transformers import SentenceTransformer   # noqa
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,9 +58,14 @@ def main() -> int:
     from ai_memory.vector_memory import VectorMemory
 
     try:
-        from sentence_transformers import SentenceTransformer
-        logger.info("Loading embedding model sentence-transformers/distiluse-base-multilingual-cased-v2 on %s", device)
-        model = SentenceTransformer("sentence-transformers/distiluse-base-multilingual-cased-v2", device=device)
+        logger.info(
+            "Loading embedding model sentence-transformers/distiluse-base-multilingual-cased-v2 on %s",
+            device,
+        )
+        model = SentenceTransformer(
+            "sentence-transformers/distiluse-base-multilingual-cased-v2",
+            device=device,
+        )
     except Exception:  # ImportError or runtime failure
         logger.warning("sentence_transformers not available, using mock embeddings")
         model = None
