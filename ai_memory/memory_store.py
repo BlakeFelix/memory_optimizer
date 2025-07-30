@@ -1,24 +1,37 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .memory import Memory
 
 from .memory_db import (
-    create_production_memory_system,
+    _ensure_schema,
     rough_token_len,
     extract_entities,
 )
+
+
+def _db_path() -> str:
+    """Return current SQLite DB path, creating directories if needed."""
+    root = Path(os.getenv("AI_MEMORY_ROOT", "~/ai_memory")).expanduser()
+    root.mkdir(parents=True, exist_ok=True)
+    return str(root / "ai_memory.db")
 
 
 class MemoryStore:
     """Thin wrapper around the SQLite backend."""
 
     def __init__(self, conn: Optional[sqlite3.Connection] = None) -> None:
-        self.conn = conn or create_production_memory_system()
+        if conn is None:
+            self.conn = sqlite3.connect(_db_path(), check_same_thread=False)
+            _ensure_schema(self.conn)
+        else:
+            self.conn = conn
 
     def add(
         self,
