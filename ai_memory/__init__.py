@@ -1,5 +1,17 @@
 """ai_memory package exposing VectorMemory lazily."""
 
+import os
+import sys
+import types
+
+if os.environ.get("AIMEM_DISABLE_TORCH", "").lower() in {"1", "true"}:
+    from .testing._stubs import FakeSentenceTransformer
+
+    sys.modules.setdefault(
+        "sentence_transformers",
+        types.SimpleNamespace(SentenceTransformer=FakeSentenceTransformer),
+    )
+
 __all__ = ["VectorMemory"]
 
 

@@ -15,6 +15,7 @@ def test_luna_loads_memories(tmp_path):
 
     env = os.environ.copy()
     env["LUNA_VECTOR_DIR"] = str(index_dir)
+    env["AIMEM_DISABLE_TORCH"] = "1"
 
     subprocess.run([
         "aimem", "vectorize", str(test_json),
