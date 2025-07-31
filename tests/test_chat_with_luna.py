@@ -9,6 +9,7 @@ import json
 import urllib.request
 import subprocess
 import os
+import io
 from ai_memory import chat_with_luna
 
 
@@ -40,4 +41,12 @@ def test_cli_monkeypatch(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _fake_run)
     monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen)
     rc = chat_with_luna.main(["hello"])
+    assert rc == 0
+
+
+def test_cli_stdin(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen)
+    monkeypatch.setattr("sys.stdin", io.StringIO("stdin query"))
+    rc = chat_with_luna.main(["-"])
     assert rc == 0
