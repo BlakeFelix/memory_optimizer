@@ -10,3 +10,20 @@ ai_memory.egg-info/
 # Bytecode cache
 __pycache__/
 *.pyc
+### Luna & memory_optimizer ###
+# Runtime artefacts
+.ai_memory/
+*.index
+*.memories.pkl
+export_*.json
+conversations.json
+all_memories.json
+luna_conversation.sh
+# Local binaries & symlinks
+/bin/
+# Python misc
+__pycache__/
+*.pyc
+# Editor swap files
+*~
+*.swp
