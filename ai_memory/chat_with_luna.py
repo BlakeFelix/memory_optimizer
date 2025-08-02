@@ -1,139 +1,81 @@
-"""chat_with_luna – memory-augmented chat wrapper for the local 70B model.
-
-Usage (once installed):
-    chat-with-luna "Why did we choose FAISS?"
-
-This CLI now mirrors the convenience of ``luna`` from ``memory_optimizer``:
-
-* Anything after ``--`` is treated verbatim as the prompt
-* ``-`` reads the prompt from ``stdin``
-
-Environment variables respected:
-    OLLAMA_MODEL     – model name in Ollama (default: "luna")
-    LUNA_VECTOR_DIR  – where the vector index + metadata live
-    LUNA_VECTOR_INDEX – override full path to index file
+#!/usr/bin/env python3
 """
-from __future__ import annotations
+chat_with_luna.py – Memory-aware CLI for Luna with token cap enforcement
+"""
 
+import argparse
 import os
 import subprocess
 import sys
-import json
-import urllib.request
-from typing import Optional
+from ai_memory.vector_memory import VectorMemory
+from ai_memory.luna_wrapper import wrap_luna_query
+
+import tiktoken
+
+MAX_TOKENS = 120000  # reserve a little buffer below 4096
+ENC = tiktoken.get_encoding("cl100k_base")  # works well for GPT-style LLMs
 
 
-def _clean_prompt(tokens: list[str]) -> str:
-    """Join tokens and gently strip matching outer quotes."""
-    if not tokens:
-        return ""
-    prompt = " ".join(tokens)
-    if len(prompt) >= 2 and prompt[0] == prompt[-1] and prompt[0] in {"'", '"'}:
-        prompt = prompt[1:-1]
-    return prompt
+def count_tokens(text: str) -> int:
+    return len(ENC.encode(text))
 
 
-# ------------------------------------------------------------------- #
-#  Helpers – memory retrieval                                         #
-# ------------------------------------------------------------------- #
+def trim_to_fit(parts: list[str], max_tokens: int) -> list[str]:
+    """
+    Accepts a list of strings (context lines) and trims from the front
+    to fit within token limits.
+    """
+    result = []
+    total = 0
+    for line in reversed(parts):
+        tokens = count_tokens(line)
+        if total + tokens > max_tokens:
+            break
+        result.append(line)
+        total += tokens
+    return list(reversed(result))
 
-def _fetch_memory_context(query: str, model_profile: str | None = None) -> str:
-    """Call the aimem CLI and return its stdout (stripped)."""
-    cmd = [
-        sys.executable, "-m", "ai_memory.cli", "context", query
-    ]
-    if model_profile:
-        cmd += ["--model", model_profile]
-    # inherit LUNA_VECTOR_… env so aimem sees the same store
+
+def _fetch_memory_context(query: str, model: str) -> list[str]:
     try:
         res = subprocess.run(
-            cmd,
+            [sys.executable, "-m", "ai_memory.cli", "context", query],
             check=True,
             capture_output=True,
             text=True,
         )
-        return res.stdout.strip()
+        return res.stdout.strip().splitlines()
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"aimem context failed: {exc.stderr}") from exc
 
 
-def _build_prompt(context: str, user_query: str) -> str:
-    """Return a single prompt string with context then query."""
-    if not context:
-        return user_query
-    lines: list[str] = ["Relevant context:"]
-    for i, snippet in enumerate(context.splitlines(), 1):
-        snippet = snippet.strip()
-        if snippet:
-            lines.append(f"{i}. {snippet}")
-    lines.append("")  # blank line
-    lines.append(f"User's question: {user_query}")
-    lines.append("Answer:")
-    return "\n".join(lines)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("query", help="User prompt to Luna")
+    parser.add_argument("--context-model", default="BAAI/bge-large-en-v1.5")
+    parser.add_argument("--debug", action="store_true")
+    ns = parser.parse_args()
 
-
-# ------------------------------------------------------------------- #
-#  Helpers – model call (Ollama HTTP API)                             #
-# ------------------------------------------------------------------- #
-
-def _query_ollama(model: str, prompt: str) -> str:
-    body = json.dumps({
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-    }).encode()
-    req = urllib.request.Request(
-        "http://localhost:11434/api/generate",
-        data=body,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        payload = json.loads(resp.read().decode())
-    return payload.get("response", "").strip()
-
-
-# ------------------------------------------------------------------- #
-#  Public CLI                                                         #
-# ------------------------------------------------------------------- #
-
-def main(argv: Optional[list[str]] = None) -> int:
-    import argparse
-
-    ap = argparse.ArgumentParser(
-        prog="chat-with-luna",
-        description="Ask Luna with automatic memory context",
-        add_help=False,
-    )
-    ap.add_argument("prompt", nargs=argparse.REMAINDER,
-                    help="Prompt text (use '-' to read stdin)")
-    ap.add_argument("--context-model", "-c",
-                    help="Model profile to tell memory_optimizer (e.g. gpt-4-32k, luna).")
-    ap.add_argument("-h", "--help", action="help", help="Show this help and exit")
-    ns = ap.parse_args(argv)
-
-    if ns.prompt == ["-"] or not ns.prompt:
-        query = sys.stdin.read().rstrip("\n")
-    else:
-        query = _clean_prompt(ns.prompt)
-
-    if not query:
-        print("\u274c  No prompt provided (use '-' to read stdin).", file=sys.stderr)
-        return 1
-
-    # Step 1 – gather context
-    ctx = _fetch_memory_context(query, ns.context_model)
-    # Step 2 – build prompt
-    prompt = _build_prompt(ctx, query)
-    # Step 3 – send to Luna
-    model_name = os.getenv("OLLAMA_MODEL", "luna")
+    query = ns.query
     try:
-        answer = _query_ollama(model_name, prompt)
-    except Exception as exc:
-        print(f"[\u2717] Failed to reach Ollama: {exc}", file=sys.stderr)
-        return 1
-    print(answer)
-    return 0
+        ctx = _fetch_memory_context(query, ns.context_model)
+    except RuntimeError as e:
+        print(f"[context error] {e}", file=sys.stderr)
+        ctx = []
+
+    vm = VectorMemory(index_path=".ai_memory/memory_store.index")
+    memories = vm.search(query, top_k=10)
+
+    # Combine all candidate text for token budgeting
+    all_lines = ctx + [f"[MEMORY] {m['text']}" for _, m in memories]
+    trimmed_lines = trim_to_fit(all_lines, MAX_TOKENS)
+
+    if len(trimmed_lines) < len(all_lines):
+        print(f"[✂] Context trimmed to fit {MAX_TOKENS} tokens", file=sys.stderr)
+
+    response = wrap_luna_query(query, context=trimmed_lines, memory_hits=[])
+    print(response)
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     raise SystemExit(main())
