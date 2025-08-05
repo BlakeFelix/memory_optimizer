@@ -3,9 +3,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import zipfile
-# Workaround for kernel 6.14.0-27 Python subprocess bug: import CLI functions directly
-from ai_memory.cli import import_ as cli_import
-from ai_memory.cli import vectorize as cli_vectorize
+from ai_memory.cli import import_ as cli_import  # Direct import to avoid kernel 6.14.0-27 subprocess bug
+from ai_memory.cli import vectorize as cli_vectorize  # Direct import to avoid kernel 6.14.0-27 subprocess bug
+
+DEFAULT_MODEL = "llama3:70b-instruct-q4_K_M"
 
 
 def process_zip(
@@ -29,9 +30,10 @@ def process_zip(
         if verbose:
             print(f"[+] Importing {mem_file.name}")
         try:
-            cli_import.callback(str(mem_file))
+            cli_import([str(mem_file)])
         except SystemExit as exc:
-            raise RuntimeError(f"aimem import failed: exit code {exc.code}") from exc
+            if exc.code != 0:
+                raise RuntimeError(f"aimem import failed: exit code {exc.code}") from exc
 
     text_logs = list(dest_dir.rglob("*.md"))
     json_logs = [p for p in dest_dir.rglob("*.json") if not p.name.endswith("memory.json")]
@@ -40,18 +42,26 @@ def process_zip(
         if verbose:
             print(f"[+] Vectorizing {log_file}")
         json_extract = "messages" if log_file.suffix == ".json" else "auto"
+        args = [
+            str(log_file),
+            "--vector-index",
+            index,
+            "--model",
+            model if model is not None else DEFAULT_MODEL,
+            "--factory",
+            "Flat",
+            "--json-extract",
+            json_extract,
+        ]
+        if no_meta:
+            args.append("--no-meta")
+        if verbose:
+            args.append("--verbose")
         try:
-            cli_vectorize.callback(
-                str(log_file),
-                vector_index=index,
-                model=model if model is not None else DEFAULT_MODEL,
-                factory="Flat",
-                json_extract=json_extract,
-                no_meta=no_meta,
-                verbose=verbose,
-            )
+            cli_vectorize(args)
         except SystemExit as exc:
-            raise RuntimeError(f"aimem vectorize failed: exit code {exc.code}") from exc
+            if exc.code != 0:
+                raise RuntimeError(f"aimem vectorize failed: exit code {exc.code}") from exc
 
 
 def scan(

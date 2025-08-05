@@ -7,8 +7,7 @@ import argparse
 import sys
 from ai_memory.vector_memory import VectorMemory
 from ai_memory.luna_wrapper import wrap_luna_query
-# Workaround for kernel 6.14.0-27 Python subprocess bug: avoid subprocess and call CLI directly
-from ai_memory.cli import context as cli_context
+from ai_memory.cli import context  # Direct import to avoid kernel 6.14.0-27 subprocess bug
 
 import tiktoken
 
@@ -43,7 +42,7 @@ def _fetch_memory_context(query: str, model: str) -> list[str]:
 
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
-            cli_context.callback(query, model, input_file=None, output_file=None)
+            context.callback(query, model, token_limit=None, conv_id=None)
         return buf.getvalue().strip().splitlines()
     except SystemExit as exc:
         raise RuntimeError(f"aimem context failed: exit code {exc.code}") from exc
