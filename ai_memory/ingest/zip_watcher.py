@@ -44,7 +44,7 @@ def process_zip(
             cli_vectorize.callback(
                 str(log_file),
                 vector_index=index,
-                model=model if model is not None else "llama3:70b-instruct-q4_K_M",
+                model=model if model is not None else DEFAULT_MODEL,
                 factory="Flat",
                 json_extract=json_extract,
                 no_meta=no_meta,
