@@ -30,7 +30,7 @@ def process_zip(
         if verbose:
             print(f"[+] Importing {mem_file.name}")
         try:
-            cli_import([str(mem_file)])
+            cli_import(str(mem_file))
         except SystemExit as exc:
             if exc.code != 0:
                 raise RuntimeError(f"aimem import failed: exit code {exc.code}") from exc
