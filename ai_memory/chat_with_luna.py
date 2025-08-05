@@ -4,11 +4,11 @@ chat_with_luna.py – Memory-aware CLI for Luna with token cap enforcement
 """
 
 import argparse
-import os
-import subprocess
 import sys
 from ai_memory.vector_memory import VectorMemory
 from ai_memory.luna_wrapper import wrap_luna_query
+# Workaround for kernel 6.14.0-27 Python subprocess bug: avoid subprocess and call CLI directly
+from ai_memory.cli import context as cli_context
 
 import tiktoken
 
@@ -38,15 +38,17 @@ def trim_to_fit(parts: list[str], max_tokens: int) -> list[str]:
 
 def _fetch_memory_context(query: str, model: str) -> list[str]:
     try:
-        res = subprocess.run(
-            [sys.executable, "-m", "ai_memory.cli", "context", query],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return res.stdout.strip().splitlines()
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"aimem context failed: {exc.stderr}") from exc
+        from io import StringIO
+        import contextlib
+
+        buf = StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli_context.callback(query, model, input_file=None, output_file=None)
+        return buf.getvalue().strip().splitlines()
+    except SystemExit as exc:
+        raise RuntimeError(f"aimem context failed: exit code {exc.code}") from exc
+    except Exception as exc:
+        raise RuntimeError(f"aimem context failed: {exc}") from exc
 
 
 def main():

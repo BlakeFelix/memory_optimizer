@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 import zipfile
-
-
-def _ensure_cli(name: str) -> None:
-    if shutil.which(name) is None:
-        raise RuntimeError(f"'{name}' command not found on PATH")
+# Workaround for kernel 6.14.0-27 Python subprocess bug: import CLI functions directly
+from ai_memory.cli import import_ as cli_import
+from ai_memory.cli import vectorize as cli_vectorize
 
 
 def process_zip(
@@ -33,33 +28,30 @@ def process_zip(
     for mem_file in dest_dir.rglob("*memory.json"):
         if verbose:
             print(f"[+] Importing {mem_file.name}")
-        subprocess.run(["aimem", "import", str(mem_file)], check=True)
+        try:
+            cli_import.callback(str(mem_file))
+        except SystemExit as exc:
+            raise RuntimeError(f"aimem import failed: exit code {exc.code}") from exc
 
     text_logs = list(dest_dir.rglob("*.md"))
     json_logs = [p for p in dest_dir.rglob("*.json") if not p.name.endswith("memory.json")]
 
     for log_file in text_logs + json_logs:
-        cmd = [
-            sys.executable,
-            "-m",
-            "ai_memory.cli",
-            "vectorize",
-            str(log_file),
-            "--vector-index",
-            index,
-            "--factory",
-            "Flat",
-        ]
-        if model:
-            cmd += ["--model", model]
-        if log_file.suffix == ".json":
-            cmd += ["--json-extract", "messages"]
-        if no_meta:
-            cmd.append("--no-meta")
         if verbose:
-            cmd.append("--verbose")
             print(f"[+] Vectorizing {log_file}")
-        subprocess.run(cmd, check=True)
+        json_extract = "messages" if log_file.suffix == ".json" else "auto"
+        try:
+            cli_vectorize.callback(
+                str(log_file),
+                vector_index=index,
+                model=model if model is not None else DEFAULT_MODEL,
+                factory="Flat",
+                json_extract=json_extract,
+                no_meta=no_meta,
+                verbose=verbose,
+            )
+        except SystemExit as exc:
+            raise RuntimeError(f"aimem vectorize failed: exit code {exc.code}") from exc
 
 
 def scan(
@@ -70,7 +62,6 @@ def scan(
     no_meta: bool,
     verbose: bool = False,
 ) -> int:
-    _ensure_cli("aimem")
     processed = 0
     for zip_file in src.glob("*.zip"):
         if not (dest / zip_file.stem).exists():

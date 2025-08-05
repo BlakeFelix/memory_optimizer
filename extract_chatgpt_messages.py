@@ -3,12 +3,13 @@
 
 import json
 import sys
-import subprocess
 from pathlib import Path
 from typing import List
 import tempfile
 import os
 import logging
+# Workaround for kernel 6.14.0-27 Python subprocess bug: call vectorize directly
+from ai_memory.cli import vectorize as cli_vectorize
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -116,28 +117,18 @@ def main() -> None:
         vector_dir = Path(os.getenv("LUNA_VECTOR_DIR", str(Path.home() / "aimemorysystem")))
         vector_dir.mkdir(parents=True, exist_ok=True)
 
-        cmd = [
-            "aimem",
-            "vectorize",
-            temp_file,
-            "--json-extract",
-            "all",
-            "--vector-index",
-            str(vector_dir / "memory_store.index"),
-            "--model",
-            "llama3:70b-instruct-q4_K_M",
-        ]
-
-        env = os.environ.copy()
-        env["CUDA_VISIBLE_DEVICES"] = ""
-
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
         logger.info("Vectorizing %d messages...", len(messages))
-        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-
-        if result.returncode != 0:
-            logger.error("Vectorization failed: %s", result.stderr)
+        try:
+            cli_vectorize.callback(
+                temp_file,
+                json_extract="all",
+                vector_index=str(vector_dir / "memory_store.index"),
+                model="llama3:70b-instruct-q4_K_M",
+            )
+        except SystemExit as exc:
+            logger.error("Vectorization failed: exit code %s", exc.code)
             sys.exit(1)
-
         logger.info("Successfully vectorized messages")
 
     except json.JSONDecodeError as e:

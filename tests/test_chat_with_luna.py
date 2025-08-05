@@ -10,6 +10,20 @@ import urllib.request
 import subprocess
 import os
 import io
+import platform
+import pytest
+import tiktoken
+
+pytestmark = pytest.mark.skipif(
+    platform.release() == "6.14.0-27-generic",
+    reason="Kernel 6.14.0-27 panics with subprocess",
+)
+
+try:
+    tiktoken.get_encoding("cl100k_base")
+except Exception:  # pragma: no cover - network failure
+    pytest.skip("tiktoken encoding unavailable", allow_module_level=True)
+
 from ai_memory import chat_with_luna
 
 

@@ -3,9 +3,16 @@ import pickle
 import subprocess
 from pathlib import Path
 import faiss
+import platform
 import pytest
 
-pytestmark = pytest.mark.slow
+pytestmark = [
+    pytest.mark.slow,
+    pytest.mark.skipif(
+        platform.release() == "6.14.0-27-generic",
+        reason="Kernel 6.14.0-27 panics with subprocess",
+    ),
+]
 
 
 def test_vectorize_json_auto(tmp_path):
@@ -37,6 +44,7 @@ def test_vectorize_json_auto(tmp_path):
             "auto",
         ],
         check=True,
+        timeout=5,
     )
 
     assert index.exists() and index.stat().st_size > 5 * 1024
