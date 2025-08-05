@@ -1,9 +1,23 @@
 import subprocess, json, os, sys, tempfile, time
+import platform
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    platform.release() == "6.14.0-27-generic",
+    reason="Kernel 6.14.0-27 panics with subprocess",
+)
 
 
 def _run(cmd, env=None):
-    result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+    result = subprocess.run(
+        cmd,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        timeout=5,
+    )
     assert result.returncode == 0, result.stderr
     return result.stdout.strip()
 

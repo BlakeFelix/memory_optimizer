@@ -2,9 +2,16 @@ import os
 import subprocess
 import json
 import pickle
+import platform
 import pytest
 
-pytestmark = pytest.mark.slow
+pytestmark = [
+    pytest.mark.slow,
+    pytest.mark.skipif(
+        platform.release() == "6.14.0-27-generic",
+        reason="Kernel 6.14.0-27 panics with subprocess",
+    ),
+]
 
 from ai_memory.vector_memory import VectorMemory
 
@@ -20,17 +27,22 @@ def test_vector_compatibility(tmp_path):
     env["AIMEM_DISABLE_TORCH"] = "1"
     os.environ.update(env)
 
-    subprocess.run([
-        "python",
-        "-m",
-        "ai_memory.cli",
-        "vectorize",
-        str(txt),
-        "--vector-index",
-        str(index),
-        "--factory",
-        "Flat",
-    ], check=True, env=env)
+    subprocess.run(
+        [
+            "python",
+            "-m",
+            "ai_memory.cli",
+            "vectorize",
+            str(txt),
+            "--vector-index",
+            str(index),
+            "--factory",
+            "Flat",
+        ],
+        check=True,
+        env=env,
+        timeout=5,
+    )
 
     meta_file = index.with_suffix(".pkl")
     legacy_file = index.parent / f"{index.stem}.memories.pkl"
@@ -45,17 +57,22 @@ def test_vector_compatibility(tmp_path):
     conv = {"conversations": [{"messages": [{"content": {"parts": ["hello"]}}]}]}
     json_file = tmp_path / "conv.json"
     json_file.write_text(json.dumps(conv))
-    subprocess.run([
-        "python",
-        "-m",
-        "ai_memory.cli",
-        "vectorize",
-        str(json_file),
-        "--vector-index",
-        str(index),
-        "--json-extract",
-        "messages",
-    ], check=True, env=env)
+    subprocess.run(
+        [
+            "python",
+            "-m",
+            "ai_memory.cli",
+            "vectorize",
+            str(json_file),
+            "--vector-index",
+            str(index),
+            "--json-extract",
+            "messages",
+        ],
+        check=True,
+        env=env,
+        timeout=5,
+    )
 
     vm = VectorMemory()
     vm.load()
