@@ -43,7 +43,7 @@ def _fetch_memory_context(query: str, model: str) -> list[str]:
 
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
-            cli_context.callback(query, model, None, None)
+            cli_context.callback(query, model, input_file=None, output_file=None)
         return buf.getvalue().strip().splitlines()
     except SystemExit as exc:
         raise RuntimeError(f"aimem context failed: exit code {exc.code}") from exc
